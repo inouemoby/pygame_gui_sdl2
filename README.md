@@ -1,7 +1,7 @@
 
 
 # Pygame GUI
-A GUI system for pygame CE.
+A GUI system for pygame_ce._sdl2.
 
  - [Documentation](https://pygame-gui.readthedocs.io/)
  - [GitHub](https://github.com/MyreMylar/pygame_gui)
@@ -9,6 +9,17 @@ A GUI system for pygame CE.
  - [PyPi](https://pypi.org/project/pygame-gui/)
 
 [![pypi](https://badge.fury.io/py/pygame-gui.svg)](https://pypi.python.org/pypi/pygame-gui) [![Documentation Status](https://readthedocs.org/projects/pygame-gui/badge/?version=latest)](https://pygame-gui.readthedocs.io/en/latest/?badge=latest) [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Master](https://travis-ci.com/MyreMylar/pygame_gui.svg?branch=master)](https://travis-ci.com/MyreMylar/pygame_gui) [![codecov](https://codecov.io/gh/MyreMylar/pygame_gui/branch/main/graph/badge.svg?token=zZhkvhgTki)](https://codecov.io/gh/MyreMylar/pygame_gui) [![Downloads](https://pepy.tech/badge/pygame-gui)](https://pepy.tech/project/pygame-gui)
+## !!Attention!!
+This Fork is created for personal use only, utilizing the contents of the `pygame._sdl2` library for rendering base on pygame_gui 0.6.10.
+This version employs a custom `TextureLayer` class (note: not `pygame._sdl2.video.Texture`!) to record texture rendering information and render it. Therefore, when using it, you need to import from pygame.core, with the filename being `ui_texture.py`.
+
+Due to this modification, all instances using the `Surface` class are replaced with `TextureLayer`, and similar methods are implemented, except for some components (such as text input, progress bars, etc.) that may not work perfectly due to the layer limit of TextureLayer's texture overlap. You can choose to increase the maximum allowable overlapping layers appropriately or optimize the logic to resolve this issue.
+
+## Points to note when using this version:
+ - If you encounter problems, please resolve them on your own. **I do not guarantee being able to resolve most issues**.
+ - There is no guarantee of future feature updates. If needed, **refer to the first point**.
+ - There is no guarantee of issue-free operation. If problems arise, **refer to the first point**.
+
 ## Requirements
 
  - Python 3.8+
@@ -17,14 +28,16 @@ A GUI system for pygame CE.
 
 ## How to install
 
-1. Run this command in a command prompt:
+1. cd to root folder and run this command in a command prompt:
 ```
-pip install pygame_gui
+pip install .
 ```
-2. If all goes well you should see a message about game_gui being installed successfully and will be able to find pygame_gui in the list of installed packages for your python interpreter (PyCharm displays these as a nice list under File->Settings->Project:project_name->Project Interpreter). 
+The package should be `pygame_gui_sdl2`
+2. If all goes well you should see a message about pygame_gui_sdl2 being installed successfully and will be able to find pygame_gui_sdl2 in the list of installed packages for your python interpreter (PyCharm displays these as a nice list under File->Settings->Project:project_name->Project Interpreter). 
 3. Should you need to delete pygame_gui for any reason then PyCharm will also let you do that from the same Project Interpreter settings window using the red minus symbol button.
 
 ## How to upgrade to the latest version
+### Currently not supported
 
 Run this command in a command prompt:
 
