@@ -1,7 +1,7 @@
 
 
 # Pygame GUI
-A GUI system for pygame_ce._sdl2.
+A GUI system for pygame._sdl2.
 
  - [Documentation](https://pygame-gui.readthedocs.io/)
  - [GitHub](https://github.com/MyreMylar/pygame_gui)
@@ -10,8 +10,9 @@ A GUI system for pygame_ce._sdl2.
 
 [![pypi](https://badge.fury.io/py/pygame-gui.svg)](https://pypi.python.org/pypi/pygame-gui) [![Documentation Status](https://readthedocs.org/projects/pygame-gui/badge/?version=latest)](https://pygame-gui.readthedocs.io/en/latest/?badge=latest) [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Master](https://travis-ci.com/MyreMylar/pygame_gui.svg?branch=master)](https://travis-ci.com/MyreMylar/pygame_gui) [![codecov](https://codecov.io/gh/MyreMylar/pygame_gui/branch/main/graph/badge.svg?token=zZhkvhgTki)](https://codecov.io/gh/MyreMylar/pygame_gui) [![Downloads](https://pepy.tech/badge/pygame-gui)](https://pepy.tech/project/pygame-gui)
 ## !!Attention!!
-This Fork is created for personal use only, utilizing the contents of the `pygame._sdl2` library for rendering base on pygame_gui 0.6.10.
-This version employs a custom `TextureLayer` class (note: not `pygame._sdl2.video.Texture`!) to record texture rendering information and render it. Therefore, when using it, you need to import from pygame.core, with the filename being `ui_texture.py`.
+This Fork is created for personal use only, utilizing the contents of the `pygame._sdl2` library for hardware acceleration or GPU rendering purposes base on pygame_gui 0.6.10.
+
+This version employs a custom `TextureLayer` class (note: **NOT** `pygame._sdl2.video.Texture`!) to record texture rendering information and render it. Therefore, when using it, you need to import from `pygame.core`, with the filename being `ui_texture.py`.
 
 Due to this modification, all instances using the `Surface` class are replaced with `TextureLayer`, and similar methods are implemented, except for some components (such as text input, progress bars, etc.) that may not work perfectly due to the layer limit of TextureLayer's texture overlap. You can choose to increase the maximum allowable overlapping layers appropriately or optimize the logic to resolve this issue.
 
@@ -32,9 +33,38 @@ Due to this modification, all instances using the `Surface` class are replaced w
 ```
 pip install .
 ```
-The package should be `pygame_gui_sdl2`
+The package should be `pygame_gui_sdl2`.
+
 2. If all goes well you should see a message about pygame_gui_sdl2 being installed successfully and will be able to find pygame_gui_sdl2 in the list of installed packages for your python interpreter (PyCharm displays these as a nice list under File->Settings->Project:project_name->Project Interpreter). 
+
 3. Should you need to delete pygame_gui for any reason then PyCharm will also let you do that from the same Project Interpreter settings window using the red minus symbol button.
+
+## A Simple Start
+
+You may need a `Window` object and use the `Renderer.from_window` method to obtain a `Renderer` object. Currently, the most reliable way to create a `Window` object is to create one using 
+```
+pygame.display.set_mode()
+```
+and then use 
+```
+Window.from_display_module()
+``` 
+to create a `Window` object, after which you will no longer need to use the `pygame.display.set_mode` method.
+
+Next, you will need to create a `UIManager` object, which requires passing in a `Renderer`. When creating other UI objects, the first parameter also defaults to `Renderer`. During each frame rendering, you need to first call 
+```
+renderer.clear()
+```
+then 
+```
+manager.update(time_delta)
+manager.draw_ui()
+```
+and finally 
+```
+renderer.present()
+```
+which should display the content. Note that no parameters should be passed into `draw_ui()`, and `time_delta` should in second.
 
 ## How to upgrade to the latest version
 ### Currently not supported
