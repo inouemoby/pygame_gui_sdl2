@@ -1034,18 +1034,13 @@ class UIElement(GUISprite, IUIElementInterface):
 
         """
         if rect is not None:
-            rect.width = max(rect.width, 0)
-            rect.height = max(rect.height, 0)
-
-            if self._pre_clipped_image is None and self.image is not None:
-                self._pre_clipped_image = self.image.copy()
-
             self._image_clip = rect
-            if self.image is not None:
-                if self.image.get_size() != self._pre_clipped_image.get_size():
-                    self.image = TextureLayer(self.renderer,size=self._pre_clipped_image.get_size())
-                self.image.fill(pygame.Color('#00000000'))
-                basic_blit(self.image, self._pre_clipped_image, self._image_clip, self._image_clip)
+            if self.image is not None and self.image.get_size() != (1, 1):
+                rect.width = max(rect.width, 0)
+                rect.height = max(rect.height, 0)
+
+                self.image = self._pre_clipped_image.copy()
+                self.image.clip(self.get_image_clipping_rect())
 
         elif self._image_clip is not None:
             self._image_clip = None
@@ -1102,18 +1097,16 @@ class UIElement(GUISprite, IUIElementInterface):
             self.image = TextureLayer(self.renderer, size=self.rect.size)
             self.image.fill(pygame.Color('#00000000'))
             self.image.extend(new_image, srcrect, dstrect=dstrect)
-            self._pre_clipped_image = self.image.copy()
             
-            if self.get_image_clipping_rect() is not None:
-                if (self.get_image_clipping_rect().width == 0 and
-                        self.get_image_clipping_rect().height == 0):
-                    self.image = self.ui_manager.get_universal_empty_texture()
-                else:
-                    self.image.fill(pygame.Color('#00000000'))
-                    basic_blit(self.image,
-                            self._pre_clipped_image,
-                            self.get_image_clipping_rect(),
-                            self.get_image_clipping_rect())
+            self._pre_clipped_image = self.image.copy()
+            if self.get_image_clipping_rect() is None:
+                pass
+            else:
+                # if (self.get_image_clipping_rect().width == 0 and
+                #         self.get_image_clipping_rect().height == 0):
+                #     self.image = self.ui_manager.get_universal_empty_texture()
+                # else:
+                self.image.clip(self.get_image_clipping_rect())
             # print("_image set")
         else:
             self.image =  None

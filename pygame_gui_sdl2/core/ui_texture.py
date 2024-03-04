@@ -306,14 +306,15 @@ class TextureLayer:
         rect3 = torenderer_srcrect
         rect4 = torenderer_dstrect
         
+        if rect2.width <=0 or rect2.height <=0:
+            return Rect(rect1.left, rect1.top, 0, 0), Rect(rect2.left, rect2.top, 0, 0)
+        
+        rect2_clip_result = rect2.clip(rect3)
         # rect3, rect4 = self.clip_to_target(rect3, rect4, Rect((0, 0),self.father_texture.renderer.logical_size))
         if rect3.width <= 0 or rect3.height <= 0:
             renderer_srcrect = Rect(rect1.left, rect1.top, 0, 0)
             renderer_dstrect = Rect(rect2.left, rect2.top, 0, 0)
         else:
-            
-            rect2_clip_result = rect2.clip(rect3)
-
             preserved_relative_rect2 = Rect(rect2_clip_result.left - rect2.left,
                                 rect2_clip_result.top - rect2.top,
                                 rect2_clip_result.width,
@@ -441,7 +442,6 @@ class TextureLayer:
             if self.check_if_empty(new_texture_data):
                 continue
             else:
-                self.calculate_rotate(new_texture_data, angle)
                 texture = new_texture_data.pop("texture")
                 texture.color = texture_data["color"]
                 texture.alpha = texture_data["color"].a
