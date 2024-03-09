@@ -83,6 +83,12 @@ TEXT_EFFECT_BOUNCE = UITextEffectType('bounce')
 TEXT_EFFECT_EXPAND_CONTRACT = UITextEffectType('expand_contract')
 TEXT_EFFECT_SHAKE = UITextEffectType('shake')
 
+# Scale modes
+ORIGINAL = 0
+FILL = 1
+SCALE_EMBED = 2
+SCALE_SURROUND = 3
+
 _namedColours = {
   "aliceblue": "#f0f8ff",
   "antiquewhite": "#faebd7",
@@ -264,5 +270,9 @@ __all__ = ['UI_BUTTON_PRESSED',
            'TEXT_EFFECT_SHAKE',
            'UITextEffectType',
            'OldType',
-           '_namedColours'
+           '_namedColours',
+           'ORIGINAL',
+            'FILL',
+            'SCALE_EMBED',
+            'SCALE_SURROUND'
            ]

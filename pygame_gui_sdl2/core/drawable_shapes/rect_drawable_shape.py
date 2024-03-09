@@ -2,12 +2,12 @@ import math
 from typing import Dict, List, Union, Tuple, Any
 
 import pygame
-from pygame._sdl2 import Renderer
+from pygame._sdl2 import Renderer, Texture
 
 from pygame_gui_sdl2.core.interfaces import IUIManagerInterface
 from pygame_gui_sdl2.core.colour_gradient import ColourGradient
 from pygame_gui_sdl2.core.drawable_shapes.drawable_shape import DrawableShape
-from pygame_gui_sdl2.core.utility import basic_blit
+from pygame_gui_sdl2.core.utility import basic_render
 from pygame_gui_sdl2.core.ui_texture import TextureLayer
 
 
@@ -83,7 +83,7 @@ class RectDrawableShape(DrawableShape):
             self.click_area_shape = self.containing_rect.copy()
 
         if self.base_texture is None:
-            self.base_texture = TextureLayer(self.renderer, size=self.containing_rect.size)
+            self.base_texture = TextureLayer(self.renderer, size=self.containing_rect.size, target=True)
 
         self.border_rect = pygame.Rect((self.shadow_width,
                                         self.shadow_width),
@@ -173,9 +173,13 @@ class RectDrawableShape(DrawableShape):
 
             found_shape = self.shape_cache.find_texture_in_cache(shape_id)
             # found_shape = None
+        
+        # self.states[state_str].texture.clear_all()
+        
         if found_shape is not None:
             self.states[state_str].texture = found_shape.copy()
         else:
+            # self.states[state_str].texture.clear_background()
             self.states[state_str].texture = self.base_texture.copy()
 
             if self.border_width > 0:
@@ -184,30 +188,32 @@ class RectDrawableShape(DrawableShape):
                     border_shape_surface = pygame.surface.Surface(self.border_rect.size,
                                                                   flags=pygame.SRCALPHA, depth=32)
                     border_shape_surface.fill(pygame.Color('#FFFFFFFF'))
-                    border_shape_texture = TextureLayer(self.renderer, surface=border_shape_surface)
-                    self.states[state_str].texture.extend(border_shape_texture,
+                    border_shape_texture = Texture.from_surface(self.renderer, surface=border_shape_surface)
+                    self.states[state_str].texture.render_to_background(border_shape_texture,
                                                         dest=self.border_rect)
-                    self.theming[border_colour_state_str].apply_gradient_to_texture(
+                    # self.states[state_str].texture.render_to_background(border_shape_texture,
+                    #                                     dest=self.border_rect)
+                    self.theming[border_colour_state_str].apply_gradient_to_texture(self.renderer,
                         border_shape_texture)
-                    basic_blit(self.states[state_str].texture,
+                    basic_render(self.states[state_str].texture.background_texture_layer,
                                border_shape_texture, self.border_rect)
                 else:
-                    self.states[state_str].texture.fill(self.theming[border_colour_state_str],
+                    self.states[state_str].texture.fill_to_background(self.theming[border_colour_state_str],
                                                         self.border_rect)
 
             if isinstance(self.theming[bg_colour_state_str], ColourGradient):
                 background_shape_surface = pygame.surface.Surface(self.background_rect.size,
                                                                   flags=pygame.SRCALPHA, depth=32)
                 background_shape_surface.fill(pygame.Color('#FFFFFFFF'))
-                background_shape_texture = TextureLayer(self.renderer, surface=background_shape_surface)
-                self.states[state_str].texture.extend(background_shape_texture,
+                background_shape_texture = Texture.from_surface(self.renderer, surface=background_shape_surface)
+                self.states[state_str].texture.render_to_background(background_shape_texture,
                                                     dest=self.background_rect)
-                self.theming[bg_colour_state_str].apply_gradient_to_texture(
+                self.theming[bg_colour_state_str].apply_gradient_to_texture(self.renderer, 
                     background_shape_texture)
-                basic_blit(self.states[state_str].texture,
+                basic_render(self.states[state_str].texture.background_texture_layer,
                            background_shape_texture, self.background_rect)
             else:
-                self.states[state_str].texture.fill(self.theming[bg_colour_state_str],
+                self.states[state_str].texture.fill_to_background(self.theming[bg_colour_state_str],
                                                     self.background_rect)
 
             if 'filled_bar' in self.theming and 'filled_bar_width_percentage' in self.theming:
@@ -220,13 +226,13 @@ class RectDrawableShape(DrawableShape):
                                                                flags=pygame.SRCALPHA,
                                                                depth=32)
                     bar_shape_surface.fill(pygame.Color('#FFFFFFFF'))
-                    bar_shape_texture = TextureLayer(self.renderer, surface=bar_shape_surface)
-                    self.states[state_str].texture.extend(bar_shape_texture, dest=bar_rect)
-                    self.theming['filled_bar'].apply_gradient_to_texture(bar_shape_texture)
-                    basic_blit(self.states[state_str].texture,
+                    bar_shape_texture = Texture.from_surface(self.renderer, surface=bar_shape_surface)
+                    self.states[state_str].texture.render_to_background(bar_shape_texture, dest=bar_rect)
+                    self.theming['filled_bar'].apply_gradient_to_texture(self.renderer, bar_shape_texture)
+                    basic_render(self.states[state_str].texture.background_texture_layer,
                                bar_shape_texture, bar_rect)
                 else:
-                    self.states[state_str].texture.fill(self.theming['filled_bar'], bar_rect)
+                    self.states[state_str].texture.fill_to_background(self.theming['filled_bar'], bar_rect)
 
             if self.states[state_str].cached_background_id is not None:
                 self.shape_cache.remove_user_from_cache_item(
@@ -234,11 +240,15 @@ class RectDrawableShape(DrawableShape):
             if (not self.has_been_resized
                     and ((self.containing_rect.width * self.containing_rect.height) < 40000)
                     and (shape_id is not None
-                         and self.states[state_str].texture.get_width() <= 1024
-                         and self.states[state_str].texture.get_height() <= 1024)):
-                self.shape_cache.add_texture_to_cache(self.states[state_str].texture.copy(),
+                         and self.states[state_str].texture.get_real_width() <= 1024
+                         and self.states[state_str].texture.get_real_height() <= 1024)):
+                ready_to_cache_texture = self.states[state_str].texture.copy()
+                ready_to_cache_texture.clear_all()
+                ready_to_cache_texture.background_texture_layer = self.states[state_str].texture.copy_background()
+                self.shape_cache.add_texture_to_cache(ready_to_cache_texture,
                                                       shape_id)
                 self.states[state_str].cached_background_id = shape_id
+                # print("Cached rect")
 
         self.finalise_images_and_text(image_state_str, state_str,
                                       text_colour_state_str,
@@ -247,3 +257,4 @@ class RectDrawableShape(DrawableShape):
 
         self.states[state_str].has_fresh_texture = True
         self.states[state_str].generated = True
+        # print("Redraw state")

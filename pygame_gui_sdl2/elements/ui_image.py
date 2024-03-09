@@ -1,12 +1,14 @@
 from typing import Union, Tuple, Dict, Optional
 
 import pygame
+from pygame._sdl2 import Texture
 
 from pygame_gui_sdl2.core import ObjectID, TextureLayer
 from pygame_gui_sdl2.core.interfaces import IContainerLikeInterface, IUIManagerInterface
 from pygame_gui_sdl2.core import UIElement
-from pygame_gui_sdl2.core.utility import premul_alpha_texture
+# from pygame_gui_sdl2.core.utility import premul_alpha_texture
 
+from pygame_gui_sdl2._constants import *
 
 class UIImage(UIElement):
     """
@@ -26,15 +28,14 @@ class UIImage(UIElement):
     :param visible: Whether the element is visible by default. Warning - container visibility
                     may override this.
     """
-    default_scale_type = "scale_long"
-    scale_type_list = ['original', 'stretch', 'scale_long', 'scale_short']
+    default_scale_type = SCALE_EMBED
     
     def __init__(self, renderer,
                  relative_rect: pygame.Rect,
-                 image_texture: TextureLayer,
+                 image_texture: Texture,
                  manager: Optional[IUIManagerInterface] = None,
                  image_is_alpha_premultiplied: bool = False,
-                 scale_type: str = "",
+                 scale_type: int = SCALE_EMBED,
                  container: Optional[IContainerLikeInterface] = None,
                  parent_element: Optional[UIElement] = None,
                  object_id: Optional[Union[ObjectID, str]] = None,
@@ -50,13 +51,14 @@ class UIImage(UIElement):
                          object_id=object_id,
                          element_id=['image'])
 
-        self.original_image = None
+        self.image_texture_layer = TextureLayer(self.renderer, size=relative_rect.size)
+        self.original_image = self.image_texture_layer.copy_texture(image_texture)
         
         self.scale_type = scale_type
         if self.scale_type == "":
             self.scale_type = self.default_scale_type
 
-        self.set_image(image_texture, image_is_alpha_premultiplied, scale_type)
+        self.set_image(image_texture, scale_type)
         self.rebuild_from_changed_theme_data()
 
     def rebuild_from_changed_theme_data(self):
@@ -68,7 +70,7 @@ class UIImage(UIElement):
                                                Tuple[int, int],
                                                Tuple[float, float]],
                        clamp_to_container: bool = False,
-                       scale_type: str = ""):
+                       scale_type: int = SCALE_EMBED):
         """
         Set the dimensions of this image, scaling the image surface to match.
 
@@ -78,53 +80,23 @@ class UIImage(UIElement):
 
         """
         super().set_dimensions(dimensions)
-        if scale_type == "":
-            scale_type = self.scale_type
+        # if scale_type == "":
+        #     scale_type = self.scale_type
 
-        if self.rect.size != self.image.get_size():
-            if self.original_image is None:
-                if self._pre_clipped_image is not None:
-                    self.original_image = self._pre_clipped_image
-                else:
-                    self.original_image = self.image
+        if self.rect.size != self.image.get_real_size():
+            self.image_texture_layer.rebuild_father_texture(self.rect.size)
+            # if self.original_image is None:
+            #     if self._pre_clipped_image is not None:
+            #         self.original_image = self._pre_clipped_image
+            #     else:
+            #         self.original_image = self.image
                     
-            if scale_type not in UIImage.scale_type_list:
-                scale_type = UIImage.default_scale_type
-            if scale_type == 'original':
-                offset = ((self.rect.width - self.original_image.get_width()) // 2,
-                        (self.rect.height - self.original_image.get_height()) // 2)
-                self._set_image(self.original_image.copy().scale_to(self.rect.size), offset)
-                self.scale_type = 'original'
-            elif scale_type == 'stretch':
-                self._set_image(self.original_image.copy().scale_to(self.rect.size))
-                self.scale_type = 'stretch'
-            else:
-                image_ratio = self.original_image.get_width() / self.original_image.get_height()
-                rect_ratio = self.rect.width / self.rect.height
+            # if scale_type not in UIImage.scale_type_list:
+            #     scale_type = UIImage.default_scale_type
+            self.set_image(self.original_image, scale_type)
 
-                if scale_type == 'scale_long':
-                    self.scale_type = 'scale_long'
-                    if image_ratio > rect_ratio:
-                        scale_factor = self.rect.width / self.original_image.get_width()
-                    else:
-                        scale_factor = self.rect.height / self.original_image.get_height()
-                else:  # scale_short
-                    self.scale_type = 'scale_short'
-                    if image_ratio > rect_ratio:
-                        scale_factor = self.rect.height / self.original_image.get_height()
-                    else:
-                        scale_factor = self.rect.width / self.original_image.get_width()
-
-                new_size = (int(self.original_image.get_width() * scale_factor),
-                            int(self.original_image.get_height() * scale_factor))
-                offset = ((self.rect.width - new_size[0]) // 2,
-                        (self.rect.height - new_size[1]) // 2)
-                self._set_image(self.original_image.copy().scale_to(new_size), offset)
-
-    def set_image(self,
-                  new_image: Union[TextureLayer, None],
-                  image_is_alpha_premultiplied: bool = False,
-                  scale_type: str = '') -> None:
+    def set_image(self, new_image: Union[Texture, None],
+                        scale_type: int = SCALE_EMBED) -> None:
         """
         Allows users to change the image displayed on a UIImage element during run time, without recreating
         the element.
@@ -136,41 +108,32 @@ class UIImage(UIElement):
         :param new_image: the new image surface to use in the UIIamge element.
         :param image_is_alpha_premultiplied: set to True if the image is already in alpha multiplied colour format.
         """
-        print("start set_image")
-        image_texture = new_image.convert_alpha().copy()
-        if not image_is_alpha_premultiplied:
-            image_texture = premul_alpha_texture(image_texture)
-        if scale_type not in UIImage.scale_type_list:
-            scale_type = UIImage.default_scale_type
+        # new_background_texture.fill('#00000000')
+        # if self.background_colour is not None and self.background_colour != '#00000000':
+        # if self.background_colour is not None:
+        #     new_background_texture.fill(self.background_colour)
+            # print(f'set layout background to {self.background_colour}')
+        
+        if new_image is not None and new_image.get_rect().size != (0, 0):
+            # if scale_type not in UIImage.scale_type_list:
+            #     scale_type = UIImage.default_scale_type
 
-        self.original_image = image_texture
-        if scale_type == 'original':
-            self.scale_type = 'original'
-            offset = ((self.rect.width - image_texture.get_width()) // 2,
-                    (self.rect.height - image_texture.get_height()) // 2)
-            self._set_image(image_texture, dstrect=offset)
-        elif scale_type == 'stretch':
-            self.scale_type = 'stretch'
-            self._set_image(image_texture.copy().scale_to(self.rect.size))
-        else:
-            image_ratio = image_texture.get_width() / image_texture.get_height()
-            rect_ratio = self.rect.width / self.rect.height
+            if scale_type == ORIGINAL:
+                self.scale_type = ORIGINAL
+                self.image_texture_layer.set_image_texture(new_image, ORIGINAL)
+                # self._set_image(new_background_texture)
+            elif scale_type == FILL:
+                self.scale_type = FILL
+                self.image_texture_layer.set_image_texture(new_image, FILL)
+                # self._set_image(new_background_texture)
+            else:
+                if scale_type == SCALE_EMBED:
+                    self.scale_type = SCALE_EMBED
+                    self.image_texture_layer.set_image_texture(new_image, SCALE_EMBED)
+                else:  # scale_short
+                    self.scale_type = SCALE_SURROUND
+                    self.image_texture_layer.set_image_texture(new_image, SCALE_SURROUND)
 
-            if scale_type == 'scale_long':
-                self.scale_type = 'scale_long'
-                if image_ratio > rect_ratio:
-                    scale_factor = self.rect.width / image_texture.get_width()
-                else:
-                    scale_factor = self.rect.height / image_texture.get_height()
-            else:  # scale_short
-                self.scale_type = 'scale_short'
-                if image_ratio > rect_ratio:
-                    scale_factor = self.rect.height / image_texture.get_height()
-                else:
-                    scale_factor = self.rect.width / image_texture.get_width()
-
-            new_size = (int(image_texture.get_width() * scale_factor),
-                        int(image_texture.get_height() * scale_factor))
-            offset = ((self.rect.width - new_size[0]) // 2,
-                    (self.rect.height - new_size[1]) // 2)
-            self._set_image(image_texture.copy().scale_to(new_size), dstrect=offset)
+                # self._set_image(new_background_texture)
+        
+        self._set_image(self.image_texture_layer)

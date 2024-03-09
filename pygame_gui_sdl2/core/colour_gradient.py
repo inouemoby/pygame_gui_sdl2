@@ -1,9 +1,10 @@
 from typing import Union, Any
 
 import pygame
+from pygame._sdl2 import Texture, Renderer
 
 from pygame_gui_sdl2.core.interfaces.colour_gradient_interface import IColourGradientInterface
-from pygame_gui_sdl2.core.ui_texture import TextureLayer
+from pygame_gui_sdl2.core.utility import basic_render
 
 
 class ColourGradient(IColourGradientInterface):
@@ -71,7 +72,7 @@ class ColourGradient(IColourGradientInterface):
 
         return result
 
-    def apply_gradient_to_texture(self, input_texture: TextureLayer,
+    def apply_gradient_to_texture(self, renderer: Renderer, input_texture: Texture,
                                   rect: Union[pygame.Rect, None] = None):
         """
         Applies this gradient to a specified input surface using blending multiplication.
@@ -83,20 +84,25 @@ class ColourGradient(IColourGradientInterface):
                      whole surface.
         """
         # scale the gradient up to the right size
-        input_texture_size = input_texture.get_size()
-        inverse_rotated_input = input_texture.copy().rotate(-self.angle_direction)
-        gradient_size = inverse_rotated_input.get_rect().size
+        input_texture_size = input_texture.get_rect().size
+        # inverse_rotated_input = input_texture.copy().rotate(-self.angle_direction)
+        # gradient_size = inverse_rotated_input.get_rect().size
+        gradient_size = input_texture_size
         gradient_surf = pygame.surface.Surface(gradient_size, flags=pygame.SRCALPHA, depth=32)
 
         pygame.transform.scale(self.gradient_surface, gradient_size, gradient_surf)
         gradient_surf = pygame.transform.rotate(gradient_surf, self.angle_direction)
+        gradient_texture = Texture.from_surface(renderer, gradient_surf)
+        gradient_texture.blend_mode = 1
 
+        renderer.target = input_texture
+        input_texture.blend_mode = 1
         if rect is not None:
-            input_texture.extend(gradient_surf, dstrect=rect)
+            gradient_texture.draw(dstrect=rect)
         else:
             gradient_placement_rect = gradient_surf.get_rect()
             gradient_placement_rect.center = (int(input_texture_size[0] / 2),
                                               int(input_texture_size[1] / 2))
 
-            input_texture.extend(gradient_surf,
-                               dest=gradient_placement_rect)
+            gradient_texture.draw(dstrect=pygame.Rect(gradient_placement_rect.topleft, gradient_texture.get_rect().size))
+        renderer.target = None

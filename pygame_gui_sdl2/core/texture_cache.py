@@ -3,9 +3,9 @@ import warnings
 from typing import List, Union, Tuple
 
 import pygame
-from pygame._sdl2 import Renderer
+from pygame._sdl2 import Renderer, Texture
 
-from pygame_gui_sdl2.core.utility import basic_blit
+from pygame_gui_sdl2.core.utility import copy_texture
 from pygame_gui_sdl2.core.colour_gradient import ColourGradient
 from pygame_gui_sdl2.core.ui_texture import TextureLayer
 
@@ -42,6 +42,11 @@ class TextureCache:
         :param surface: The surface to add to the cache.
         :param string_id: An ID to store the surface under to make it easy to recall later.
         """
+        # copy_texture = Texture(self.renderer, size=texture.get_rect().size, target=True, scale_quality=2)
+        # self.renderer.target = copy_texture
+        # texture.draw()
+        # self.renderer.target = None
+        # self.cache_short_term_lookup[string_id] = [copy_texture, 1]
         self.cache_short_term_lookup[string_id] = [texture.copy(), 1]
 
     def update(self, time_delta: float):
@@ -85,7 +90,7 @@ class TextureCache:
         """
 
         if (isinstance(cached_item[0], TextureLayer) and
-                cached_item[0].get_size() > self.cache_texture_size):
+                cached_item[0].get_real_rect().size > self.cache_texture_size):
             warnings.warn('Unable to cache textures larger than ' + str(self.cache_texture_size))
             return None
         else:

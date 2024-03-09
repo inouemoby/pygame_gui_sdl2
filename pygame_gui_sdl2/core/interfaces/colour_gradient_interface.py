@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from typing import Union
 
 import pygame
+from pygame._sdl2 import Texture, Renderer
 from pygame_gui_sdl2.core.ui_texture import TextureLayer
 
 
@@ -14,7 +15,7 @@ class IColourGradientInterface(metaclass=ABCMeta):
     """
 
     @abstractmethod
-    def apply_gradient_to_texture(self, input_texture: TextureLayer,
+    def apply_gradient_to_texture(self, renderer: Renderer, input_texture: Texture,
                                   rect: Union[pygame.Rect, None] = None):
         """
         Applies this gradient to a specified input surface using blending multiplication.

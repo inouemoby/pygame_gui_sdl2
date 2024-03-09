@@ -278,11 +278,11 @@ class UIExpandedDropDownState:
             self.should_transition = True
 
             # old event - to be removed in 0.8.0
-            event_data = {'user_type': OldType(UI_DROP_DOWN_MENU_CHANGED),
-                          'text': self.drop_down_menu_ui.selected_option,
-                          'ui_element': self.drop_down_menu_ui,
-                          'ui_object_id': self.drop_down_menu_ui.most_specific_combined_id}
-            pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
+            # event_data = {'user_type': OldType(UI_DROP_DOWN_MENU_CHANGED),
+            #               'text': self.drop_down_menu_ui.selected_option,
+            #               'ui_element': self.drop_down_menu_ui,
+            #               'ui_object_id': self.drop_down_menu_ui.most_specific_combined_id}
+            # pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
 
             # new event
             event_data = {'text': self.drop_down_menu_ui.selected_option,

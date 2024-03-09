@@ -3,13 +3,13 @@ import warnings
 from typing import Dict, List, Union, Tuple, Any, Optional
 
 import pygame
-from pygame._sdl2 import Renderer
+from pygame._sdl2 import Renderer, Texture
 from pygame.math import Vector2
 
 from pygame_gui_sdl2.core.interfaces import IUIManagerInterface
 from pygame_gui_sdl2.core.colour_gradient import ColourGradient
 from pygame_gui_sdl2.core.drawable_shapes.drawable_shape import DrawableShape
-from pygame_gui_sdl2.core.utility import apply_colour_to_texture, basic_blit
+from pygame_gui_sdl2.core.utility import apply_colour_to_texture, basic_render
 from pygame_gui_sdl2.core.ui_texture import TextureLayer
 
 
@@ -141,7 +141,7 @@ class RoundedRectangleShape(DrawableShape):
             self.corner_radius = max(corner_radius, 0)
 
         if self.base_texture is None:
-            self.base_texture = TextureLayer(self.renderer, size=self.containing_rect.size)
+            self.base_texture = TextureLayer(self.renderer, size=self.containing_rect.size, target=True)
 
         self.border_rect = pygame.Rect((self.shadow_width,
                                         self.shadow_width),
@@ -267,26 +267,32 @@ class RoundedRectangleShape(DrawableShape):
                                                 flags=pygame.SRCALPHA,
                                                 depth=32)
             quick_surf.fill(pygame.Color('#00000000'))
-            quick_text = TextureLayer(self.renderer, surface=quick_surf)
+        quick_texture = Texture.from_surface(self.renderer, surface=quick_surf)
         if isinstance(self.theming['normal_bg'], ColourGradient):
             # grad_surf = 
            
-            grad_text = TextureLayer(self.renderer, surface=pygame.surface.Surface(self.click_area_shape.size,
+            grad_surf = pygame.surface.Surface(self.click_area_shape.size,
                                                flags=pygame.SRCALPHA,
-                                               depth=32))
-            grad_text.fill(pygame.Color('#FFFFFFFF'))
-            self.theming['normal_bg'].apply_gradient_to_texture(grad_text)
+                                               depth=32)
+            grad_surf.fill(pygame.Color('#FFFFFFFF'))
+            grad_texture = Texture.from_surface(self.renderer, surface=grad_surf)
+            self.theming['normal_bg'].apply_gradient_to_texture(self.renderer, grad_texture)
 
-            basic_blit(quick_text, grad_text,
+            basic_render(quick_texture, grad_texture,
                        pygame.Rect((self.shadow_width,
                                     self.shadow_width),
                                    self.click_area_shape.size))
         else:
-            quick_text.fill(self.theming['normal_bg'], pygame.Rect((self.shadow_width,
-                                                                    self.shadow_width),
-                                                                   self.click_area_shape.size))
+            color_surface = pygame.surface.Surface(self.click_area_shape.size,flags=pygame.SRCALPHA,
+                                               depth=32)
+            color_surface.fill(self.theming['normal_bg'])
+            basic_render(quick_texture, color_surface,
+                       pos=(self.shadow_width, self.shadow_width))
+            # quick_texture.fill(self.theming['normal_bg'], pygame.Rect((self.shadow_width,
+            #                                                         self.shadow_width),
+            #                                                        self.click_area_shape.size))
 
-        self.states['normal'].texture = quick_text
+        self.states['normal'].texture = quick_texture
         self.finalise_images_and_text('normal_image', 'normal',
                                       'normal_text', 'normal_text_shadow', True)
         self.states['normal'].has_fresh_texture = True
@@ -323,8 +329,10 @@ class RoundedRectangleShape(DrawableShape):
 
             found_shape = self.shape_cache.find_texture_in_cache(shape_id)
             # found_shape = None
+        
+        # self.states[state_str].texture.clear_render_layer()
         if found_shape is not None:
-            self.states[state_str].texture = found_shape.copy()
+            self.states[state_str].texture.render_to_background(found_shape)
         else:
             # border_corner_radius = self.corner_radius
             if self.base_texture is not None:
@@ -354,22 +362,22 @@ class RoundedRectangleShape(DrawableShape):
                                                   self.containing_rect.height * aa_amount),
                                                  flags=pygame.SRCALPHA, depth=32)
             bab_surface.fill(pygame.Color('#00000000'))
-            bab_texture = TextureLayer(self.renderer, surface= bab_surface)
+            bab_texture = Texture(self.renderer, surface= bab_surface)
             if self.border_width > 0:
-                shape_texture = self.clear_and_create_shape_texture(bab_texture,
+                shape_texture = self.clear_and_create_shape_texture(self.states[state_str].texture,
                                                                     self.border_rect,
                                                                     0,
                                                                     self.corner_radius,
                                                                     aa_amount=aa_amount,
                                                                     clear=False)
                 if isinstance(border_col, ColourGradient):
-                    border_col.apply_gradient_to_texture(shape_texture)
+                    border_col.apply_gradient_to_texture(self.renderer, shape_texture)
                 else:
                     apply_colour_to_texture(border_col, shape_texture)
 
-                basic_blit(bab_texture, shape_texture, self.border_rect)
+                basic_render(bab_texture, shape_texture, self.border_rect)
 
-            shape_texture = self.clear_and_create_shape_texture(bab_texture,
+            shape_texture = self.clear_and_create_shape_texture(self.states[state_str].texture,
                                                                 self.background_rect,
                                                                 0,
                                                                 bg_corner_radius,
@@ -379,16 +387,16 @@ class RoundedRectangleShape(DrawableShape):
                 self._redraw_filled_bar(bg_col, shape_texture)
             else:
                 if isinstance(bg_col, ColourGradient):
-                    bg_col.apply_gradient_to_texture(shape_texture)
+                    bg_col.apply_gradient_to_texture(self.renderer, shape_texture)
                 else:
                     apply_colour_to_texture(bg_col, shape_texture)
 
-            basic_blit(bab_texture, shape_texture, self.background_rect)
+            basic_render(bab_texture, shape_texture, self.background_rect)
 
             # apply AA to background
             bab_texture.scale_to(self.containing_rect.size)
 
-            basic_blit(self.states[state_str].texture, bab_texture, (0, 0))
+            basic_render(self.states[state_str].texture, bab_texture, (0, 0))
 
             if self.states[state_str].cached_background_id is not None:
                 cached_id = self.states[state_str].cached_background_id
@@ -430,11 +438,11 @@ class RoundedRectangleShape(DrawableShape):
                                          self.background_rect.height))
 
         if isinstance(bg_col, ColourGradient):
-            bg_col.apply_gradient_to_texture(shape_texture, unfilled_bar_rect)
+            bg_col.apply_gradient_to_texture(self.renderer, shape_texture, unfilled_bar_rect)
         else:
             apply_colour_to_texture(bg_col, shape_texture, unfilled_bar_rect)
         if isinstance(self.theming['filled_bar'], ColourGradient):
-            self.theming['filled_bar'].apply_gradient_to_texture(shape_texture, bar_rect)
+            self.theming['filled_bar'].apply_gradient_to_texture(self.renderer, shape_texture, bar_rect)
         else:
             apply_colour_to_texture(self.theming['filled_bar'], shape_texture, bar_rect)
 

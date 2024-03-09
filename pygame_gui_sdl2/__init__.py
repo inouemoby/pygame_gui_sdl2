@@ -28,10 +28,10 @@ from pygame_gui_sdl2._constants import TEXT_EFFECT_SHAKE
 from pygame_gui_sdl2._constants import TEXT_EFFECT_EXPAND_CONTRACT
 from pygame_gui_sdl2._constants import UITextEffectType
 from pygame_gui_sdl2.core.utility import PackageResource
-from pygame_gui_sdl2.global_renderer import global_renderer
+# from pygame_gui_sdl2.global_renderer import global_color
 
 __all__ = ['UIManager',
-           'global_renderer',
+           'global_color',
            'core',
            'elements',
            'windows',

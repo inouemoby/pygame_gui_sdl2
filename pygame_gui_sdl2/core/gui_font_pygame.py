@@ -1,6 +1,6 @@
 import pygame
 
-from pygame_gui_sdl2.core.ui_texture import TextureLayer
+from pygame._sdl2 import Texture
 from pygame_gui_sdl2.core.interfaces.gui_font_interface import IGUIFontInterface
 from pygame.font import Font
 from typing import Union, IO, Optional, Dict, Tuple
@@ -66,25 +66,45 @@ class GUIFontPygame(IGUIFontInterface):
         # this may need to be broken down further in the wrapper
         return self.__internal_font.metrics(text)
 
-    def render_premul(self, text: str, text_color: Color) -> TextureLayer:
+    def render_premul(self, text: str, text_color: Color) -> Texture:
         text_surface = self.__internal_font.render(text, self.antialiased, text_color)
         text_surface = text_surface.convert_alpha()
         if text_surface.get_width() > 0 and text_surface.get_height() > 0:
             text_surface = text_surface.premul_alpha()
-        return TextureLayer(self.renderer , surface=text_surface)
+        temp_texture = Texture.from_surface(self.renderer, surface=text_surface)
+        temp_texture.blend_mode = 1
+        text_texture = Texture(self.renderer, size=text_surface.get_size(), target=True, scale_quality=2)
+        text_texture.blend_mode = 1
+        self.renderer.target = text_texture
+        self.renderer.draw_color = Color("#00000000")
+        self.renderer.clear()
+        temp_texture.draw()
+        self.renderer.target = None
+        return text_texture
 
     def render_premul_to(self, text: str, text_colour: Color,
-                         texture_size: Tuple[int, int], texture_position: Tuple[int, int]) -> TextureLayer:
-        text_surface = pygame.Surface(texture_size, depth=32, flags=pygame.SRCALPHA)
-        text_surface.fill((0, 0, 0, 0))
+                         texture_size: Tuple[int, int], texture_position: Tuple[int, int]) -> Texture:
+        # text_surface = pygame.Surface(texture_size, depth=32, flags=pygame.SRCALPHA)
+        # text_surface.fill((0, 0, 0, 0))
         temp_surf = self.__internal_font.render(text, self.antialiased, text_colour)
         temp_surf = temp_surf.convert_alpha()
         if temp_surf.get_width() > 0 and temp_surf.get_height() > 0:
             temp_surf = temp_surf.premul_alpha()
-            text_texture = TextureLayer(self.renderer, surface=text_surface)
-            text_texture.extend(temp_surf, dest=(texture_position[0], texture_position[1]-self.__internal_font.get_ascent()))
+            temp_texture = Texture.from_surface(self.renderer, surface=temp_surf)
+            temp_texture.blend_mode = 1
+            text_texture = Texture(self.renderer, size=texture_size, target=True, scale_quality=2)
+            text_texture.blend_mode = 1
+            self.renderer.target = text_texture
+            self.renderer.draw_color = Color("#00000000")
+            self.renderer.clear()
+            temp_texture.draw(dstrect=pygame.Rect((texture_position[0], texture_position[1]-self.__internal_font.get_ascent()), temp_surf.get_size()))
+            self.renderer.target = None
         else:
-            text_texture = TextureLayer(self.renderer, surface=text_surface)
+            text_texture = Texture(self.renderer, size=texture_size)
+            self.renderer.target = text_texture
+            self.renderer.draw_color = Color("#00000000")
+            self.renderer.clear()
+            self.renderer.target = None
         return text_texture
 
     def get_padding_height(self):

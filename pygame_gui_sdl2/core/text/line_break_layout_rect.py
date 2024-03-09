@@ -1,7 +1,7 @@
 from typing import Tuple, Optional
 
 import pygame
-from pygame._sdl2 import Renderer
+from pygame._sdl2 import Renderer, Texture
 from pygame.surface import Surface
 from pygame.rect import Rect
 from pygame import Color
@@ -38,7 +38,7 @@ class LineBreakLayoutRect(TextLayoutRect):
                  x_scroll_offset: int = 0,
                  letter_end: Optional[int] = None):
         if self.is_selected:
-            self.select_text = TextureLayer(self.renderer, size=(self.selection_chunk_width, row_bg_height))
-            self.select_text.fill(self.selection_colour)
-            target_texture.extend(self.select_text, dest=self.topleft)
+            # self.select_text = Texture(self.renderer, size=(self.selection_chunk_width, row_bg_height), scale_quality=2)
+            # self.select_text.fill(self.selection_colour)
+            target_texture.fill_to_text(color=self.selection_colour, rect=pygame.Rect(self.topleft, (self.selection_chunk_width, row_bg_height)))
 

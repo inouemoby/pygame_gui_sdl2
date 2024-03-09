@@ -54,9 +54,9 @@ class SimpleTestLayoutRect(TextLayoutRect):
                  row_bg_height: int,
                  x_scroll_offset: int = 0,
                  letter_end: Optional[int] = None):
-        surface = Surface(self.size, depth=32, flags=pygame.SRCALPHA)
-        surface.fill(self.colour)
-        target_texture.extend(surface, dest=self, area=target_area)
+        # surface = Surface(self.size, depth=32, flags=pygame.SRCALPHA)
+        # surface.fill(self.colour)
+        target_texture.fill_to_background(self.colour, rect=pygame.Rect(target_area.topleft, self.size))
 
     def split(self, requested_x: int, line_width: int, row_start_x: int, allow_split_dashes: bool = True):
 

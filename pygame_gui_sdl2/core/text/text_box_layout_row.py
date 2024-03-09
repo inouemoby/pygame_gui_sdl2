@@ -245,11 +245,14 @@ class TextBoxLayoutRow(pygame.Rect):
                                         Also helps with the 'typewriter' effect.
         """
         self.merge_adjacent_compatible_chunks()
-        if texture == self.layout.finalised_texture and self.layout.layout_rect.height > texture.get_height():
+        if (texture == self.layout.finalised_texture
+            and self.layout.layout_rect.height > texture.get_dstrect_height()):
             self.layout.finalise_to_new()
         else:
             if self.texture_row_dirty:
                 self.clear()
+            # texture.clear_top()
+            # self.clear()
             for text_chunk in self.items:
                 if text_chunk is not None:
                     chunk_view_rect = pygame.Rect(self.layout.layout_rect.left,
@@ -275,16 +278,18 @@ class TextBoxLayoutRow(pygame.Rect):
                     print(self.items)
 
             if self.edit_cursor_active:
-                cursor_texture = TextureLayer(self.renderer, size=self.cursor_rect.size)
+                # cursor_texture = TextureLayer(self.renderer, size=self.cursor_rect.size)
 
-                cursor_texture.fill(self.layout.get_cursor_colour())
+                # cursor_texture.fill(self.layout.get_cursor_colour())
+                # 这里的绘制位置是基于这个cursor_rect的，可能最好的目标rect是混合两个rect
                 self.cursor_rect = pygame.Rect((self.x +
                                                 self.cursor_draw_width -
                                                 self.layout.x_scroll_offset),
                                                self.y,
                                                2,
                                                max(0, self.height - 2))
-                texture.extend(cursor_texture, dest=self.cursor_rect)
+                texture.fill_to_text(self.layout.get_cursor_colour(), rect=self.cursor_rect)
+            # self.finalise_top(texture)
 
             self.target_texture = texture
 
@@ -292,6 +297,18 @@ class TextBoxLayoutRow(pygame.Rect):
         # pygame.draw.rect(self.target_surface, pygame.Color('#00FF00'), self, 1)
         self.texture_row_dirty = True
         return cumulative_letter_count
+    
+    def finalise_top(self, texture: TextureLayer):
+        if self.edit_cursor_active:
+            self.cursor_rect = pygame.Rect((self.x +
+                                            self.cursor_draw_width -
+                                            self.layout.x_scroll_offset),
+                                            self.y,
+                                            2,
+                                            max(0, self.height - 2))
+            texture.clear_top()
+            texture.fill_to_top(self.layout.get_cursor_colour(), rect=self.cursor_rect)
+        self.target_texture = texture
 
     def set_default_text_colour(self, colour):
         """
@@ -360,8 +377,31 @@ class TextBoxLayoutRow(pygame.Rect):
             slightly_wider_rect = pygame.Rect(self.x, self.y,
                                               self.layout.view_rect.width,
                                               self.height)
-            self.target_texture.fill(pygame.Color('#00000000'), slightly_wider_rect)
+            # self.target_texture.fill(pygame.Color('#00000000'), slightly_wider_rect)
+            self.target_texture.fill_to_text(pygame.Color('#00000000'), slightly_wider_rect)
+            self.target_texture.fill_to_text_shadow(pygame.Color('#00000000'), slightly_wider_rect)
+            # self.target_texture.fill_to_top(pygame.Color('#00000000'), slightly_wider_rect)
+            # self.target_texture.clear_text_shadow()
+            # self.target_texture.clear_text()
+            # self.target_texture.clear_top()
             self.texture_row_dirty = False
+            # print("clear row")
+            
+    def clear_top(self):
+        """
+        'Clears' the current row from its target surface by setting the
+         area taken up by this row to transparent black.
+
+         Hopefully the target surface is supposed to be transparent black when empty.
+        """
+        if self.target_texture is not None:
+            slightly_wider_rect = pygame.Rect(self.x, self.y,
+                                              self.layout.view_rect.width,
+                                              self.height)
+            # # self.target_texture.fill(pygame.Color('#00000000'), slightly_wider_rect)
+            self.target_texture.fill_to_top(pygame.Color('#00000000'), slightly_wider_rect)
+            # self.texture_row_dirty = False
+            # self.target_texture.clear_top()
 
     def _setup_offset_position_from_edit_cursor(self):
         if self.cursor_draw_width > (self.layout.x_scroll_offset +

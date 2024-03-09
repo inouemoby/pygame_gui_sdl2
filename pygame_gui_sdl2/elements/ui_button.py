@@ -244,10 +244,10 @@ class UIButton(UIElement):
         self.drawable_shape.set_active_state('hovered')
 
         # old event to remove in 0.8.0
-        event_data = {'user_type': OldType(UI_BUTTON_ON_HOVERED),
-                      'ui_element': self,
-                      'ui_object_id': self.most_specific_combined_id}
-        pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
+        # event_data = {'user_type': OldType(UI_BUTTON_ON_HOVERED),
+        #               'ui_element': self,
+        #               'ui_object_id': self.most_specific_combined_id}
+        # pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
         # new event
         event_data = {'ui_element': self,
                       'ui_object_id': self.most_specific_combined_id}
@@ -263,10 +263,10 @@ class UIButton(UIElement):
             self.drawable_shape.set_active_state(self._get_appropriate_state_name())
 
         # old event to remove in 0.8.0
-        event_data = {'user_type': OldType(UI_BUTTON_ON_UNHOVERED),
-                      'ui_element': self,
-                      'ui_object_id': self.most_specific_combined_id}
-        pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
+        # event_data = {'user_type': OldType(UI_BUTTON_ON_UNHOVERED),
+        #               'ui_element': self,
+        #               'ui_object_id': self.most_specific_combined_id}
+        # pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
 
         # new event
         event_data = {'ui_element': self,
@@ -399,10 +399,10 @@ class UIButton(UIElement):
             self._handler[event](data)
         else:
             # old event to remove in 0.8.0
-            event_data = {'user_type': OldType(event),
-                          'ui_element': self,
-                          'ui_object_id': self.most_specific_combined_id}
-            pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
+            # event_data = {'user_type': OldType(event),
+            #               'ui_element': self,
+            #               'ui_object_id': self.most_specific_combined_id}
+            # pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
 
             # new event
             event_data = data

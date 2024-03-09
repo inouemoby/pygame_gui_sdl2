@@ -8,13 +8,14 @@ A GUI system for pygame._sdl2.
  - [Examples](https://github.com/MyreMylar/pygame_gui_examples)
  - [PyPi](https://pypi.org/project/pygame-gui/)
 
-[![pypi](https://badge.fury.io/py/pygame-gui.svg)](https://pypi.python.org/pypi/pygame-gui) [![Documentation Status](https://readthedocs.org/projects/pygame-gui/badge/?version=latest)](https://pygame-gui.readthedocs.io/en/latest/?badge=latest) [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/release/python-380/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![Master](https://travis-ci.com/MyreMylar/pygame_gui.svg?branch=master)](https://travis-ci.com/MyreMylar/pygame_gui) [![codecov](https://codecov.io/gh/MyreMylar/pygame_gui/branch/main/graph/badge.svg?token=zZhkvhgTki)](https://codecov.io/gh/MyreMylar/pygame_gui) [![Downloads](https://pepy.tech/badge/pygame-gui)](https://pepy.tech/project/pygame-gui)
 ## !!Attention!!
 This Fork is created for personal use only, utilizing the contents of the `pygame._sdl2` library for hardware acceleration or GPU rendering purposes base on pygame_gui 0.6.10.
 
 This version employs a custom `TextureLayer` class (note: **NOT** `pygame._sdl2.video.Texture`!) to record texture rendering information and render it. Therefore, when using it, you need to import from `pygame.core`, with the filename being `ui_texture.py`.
 
-Due to this modification, all instances using the `Surface` class are replaced with `TextureLayer`, and similar methods are implemented, except for some components (such as text input, progress bars, etc.) that may not work perfectly due to the layer limit of TextureLayer's texture overlap. You can choose to increase the maximum allowable overlapping layers appropriately or optimize the logic to resolve this issue.
+Due to this modification, all instances using the `Surface` class are replaced with `Texture`, and introduced `TextureLayer` to serve as a management instance for an object's textures, but please note that in most cases, these two terms are used interchangeably in the naming (meaning `TextureLayer` objects are also named as `texture`). Users need to pay attention to the types of variables specified here to differentiate what should be used. In most cases, these functions should work, but occasional bugs of *unknown* origin may occur in the display currently.
+
+In most cases, using `Texture` objects for resource management is a better choice in the new system.
 
 ## Points to note when using this version:
  - If you encounter problems, please resolve them on your own. **I do not guarantee being able to resolve most issues**.
@@ -65,6 +66,15 @@ and finally
 renderer.present()
 ```
 which should display the content. Note that no parameters should be passed into `draw_ui()`, and `time_delta` should in second.
+
+## Additional information
+
+This version is primarily built based on the following approach:
+
+A `TextureLayer` object is created, with a corresponding parameter called `target`. If true, it will additionally create four layers: `background_texture_layer`, `text_texture_layer`, `text_shadow_texture_layer`, and `top_texture_layer`. Each layer can be considered as a separate layer, and the order of layers is background, image, text_shadow, text, top, and effect. Each layer will be rendered to `father_texture` first and then finally rendered from `father_texture` to the window.
+
+In order to facilitate texture rendering, many methods for directly manipulating textures are retained in `utility` and `TextureLayer`, such as copying, rotating, etc., all of which can be called directly. At the same time, in `TextureLayer.render_to_target`, similar content to `Surface.fill` is implemented, which changes the alpha of the corresponding rendered pixels. 
+However, note that `render_to_target` is not an in-place method, which means the passed-in texture will not be directly rendered. Instead, a new texture will be created internally and returned, so the returned value needs to be used to render the new texture when calling the method.
 
 ## How to upgrade to the latest version
 ### Currently not supported

@@ -22,7 +22,7 @@ from pygame_gui_sdl2.core import ObjectID
 
 from pygame_gui_sdl2.core.ui_texture import TextureLayer
 from pygame_gui_sdl2.elements import UITooltip
-from pygame_gui_sdl2.global_renderer import global_renderer
+# from pygame_gui_sdl2.global_renderer import global_renderer
 
 class UIManager(IUIManagerInterface):
     """
@@ -43,8 +43,8 @@ class UIManager(IUIManagerInterface):
                  resource_loader: Optional[IResourceLoader] = None,
                  starting_language: str = 'en',
                  translation_directory_paths: Optional[List[str]] = None):
-        global global_renderer
-        global_renderer = renderer
+        # global global_renderer
+        # global_renderer = renderer
         self.renderer = renderer
         
         if get_default_manager() is None:
@@ -76,7 +76,7 @@ class UIManager(IUIManagerInterface):
         if theme_path is not None:
             self.ui_theme.load_theme(theme_path)
 
-        self.universal_empty_texture = TextureLayer(global_renderer, (0, 0))
+        self.universal_empty_texture = TextureLayer(self.renderer, (0, 0))
         self.ui_group = LayeredGUIGroup()
 
         self.focused_set = None
@@ -329,7 +329,7 @@ class UIManager(IUIManagerInterface):
         """
         return self.mouse_position
 
-    def draw_ui(self, window_texture: TextureLayer = None):
+    def draw_ui(self):
         """
         Draws all the UI elements on the screen. Generally you want this to be after the rest of
         your game sprites have been drawn.
@@ -340,7 +340,7 @@ class UIManager(IUIManagerInterface):
         :param window_texture: Should be None to draw to renderer directly.
 
         """
-        self.ui_group.draw(window_texture)
+        self.ui_group.draw()
 
     def add_font_paths(self, font_name: str, regular_path: str, bold_path: str = None,
                        italic_path: str = None, bold_italic_path: str = None):

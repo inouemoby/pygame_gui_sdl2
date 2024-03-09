@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from typing import Tuple
 from pygame import Surface, Color, Rect
-from pygame_gui_sdl2.core.ui_texture import TextureLayer
+from pygame._sdl2 import Texture
 
 
 class IGUIFontInterface(metaclass=ABCMeta):
@@ -10,12 +10,12 @@ class IGUIFontInterface(metaclass=ABCMeta):
     """
 
     @abstractmethod
-    def render_premul(self, text: str, text_color: Color) -> TextureLayer:
+    def render_premul(self, text: str, text_color: Color) -> Texture:
         """
         Draws text to a surface ready for premultiplied alpha-blending
         """
 
-    def render_premul_to(self, text: str, text_colour: Color, texture_size: Tuple[int, int], texture_position: Tuple[int, int]) -> TextureLayer:
+    def render_premul_to(self, text: str, text_colour: Color, texture_size: Tuple[int, int], texture_position: Tuple[int, int]) -> Texture:
         """
 
 

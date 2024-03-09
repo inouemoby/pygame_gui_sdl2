@@ -5,10 +5,10 @@ from typing import Dict, List, Union, Tuple, Optional
 from copy import copy, deepcopy
 
 import pygame
-import pygame._sdl2
+from pygame._sdl2 import Texture, Renderer
 
 from pygame_gui_sdl2.core.interfaces import IUIManagerInterface
-from pygame_gui_sdl2.core.utility import basic_blit
+from pygame_gui_sdl2.core.utility import basic_render
 from pygame_gui_sdl2.core.ui_texture import TextureLayer
 
 from pygame_gui_sdl2.core.text import TextLineChunkFTFont, TextBoxLayout
@@ -22,13 +22,12 @@ class DrawableShapeState:
     :param state_id: The ID/name of this state.
 
     """
-    def __init__(self, renderer: pygame._sdl2.Renderer, state_id: str):
+    def __init__(self, renderer: Renderer, state_id: str):
 
         self.state_id = state_id
         self.renderer = renderer
-        self.surface = pygame.surface.Surface((0, 0), flags=pygame.SRCALPHA, depth=32)
-        self.texture = TextureLayer(renderer, surface=self.surface)
-        self.has_fresh_surface = False
+        self.texture = TextureLayer(renderer, size=(0, 0), target=True)
+        # self.has_fresh_surface = False
         self.has_fresh_texture = False
         self.cached_background_id = None  # type: Union[str, None]
         self.transition = None  # type: Union[DrawableStateTransition, None]
@@ -37,24 +36,24 @@ class DrawableShapeState:
         self.generated = False
 
         # created if we have text
-        self.text_surface: Optional[pygame.Surface] = None
-        self.pre_text_surface: Optional[pygame.Surface] = None
+        # self.text_surface: Optional[pygame.Surface] = None
+        # self.pre_text_surface: Optional[pygame.Surface] = None
         self.text_texture: Optional[TextureLayer] = None
         self.pre_text_texture: Optional[TextureLayer] = None
         
 
-    def get_surface(self) -> pygame.surface.Surface:
-        """
-        Gets the pygame.surface.Surface of this state. Will be a blend of this state and
-        the previous one if we are in a transition.
+    # def get_surface(self) -> pygame.surface.Surface:
+    #     """
+    #     Gets the pygame.surface.Surface of this state. Will be a blend of this state and
+    #     the previous one if we are in a transition.
 
-        :return: A pygame Surface for this state.
+    #     :return: A pygame Surface for this state.
 
-        """
-        if self.transition is not None:
-            return self.transition.produce_blended_result()
-        else:
-            return self.surface
+    #     """
+    #     if self.transition is not None:
+    #         return self.transition.produce_blended_result()
+    #     else:
+    #         return self.surface
         
     def get_texture(self) -> TextureLayer:
         if self.transition is not None:
@@ -94,8 +93,8 @@ class DrawableStateTransition:
         self.states = states
         self.duration = duration
         self.remaining_time = self.duration - progress
-        self.percentage_start_state = 1.0
-        self.percentage_target_state = 0.0
+        self.percentage_start_state = 0.5
+        self.percentage_target_state = 0.5
         self.start_stat_id = start_state_id
         self.target_state_id = target_state_id
         self.finished = False
@@ -114,30 +113,30 @@ class DrawableStateTransition:
         else:
             self.finished = True
 
-    def produce_blended_result(self) -> pygame.surface.Surface:
-        """
-        Produces a blend between the images of our start state and our target state. The
-        progression of the blend is dictated by the progress of time through the transition.
+    # def produce_blended_result(self) -> pygame.surface.Surface:
+    #     """
+    #     Produces a blend between the images of our start state and our target state. The
+    #     progression of the blend is dictated by the progress of time through the transition.
 
-        :return: The blended surface.
+    #     :return: The blended surface.
 
-        """
-        result = self.states[self.start_stat_id].surface.copy()
-        blended_target = self.states[self.target_state_id].surface.copy()
-        start_multiply_surface = pygame.surface.Surface(
-            self.states[self.start_stat_id].surface.get_size(), flags=pygame.SRCALPHA, depth=32)
-        target_multiply_surface = start_multiply_surface.copy()
+    #     """
+    #     result = self.states[self.start_stat_id].surface.copy()
+    #     blended_target = self.states[self.target_state_id].surface.copy()
+    #     start_multiply_surface = pygame.surface.Surface(
+    #         self.states[self.start_stat_id].surface.get_size(), flags=pygame.SRCALPHA, depth=32)
+    #     target_multiply_surface = start_multiply_surface.copy()
 
-        start_alpha = int(round(255.0*self.percentage_start_state))
-        target_alpha = 255 - start_alpha
+    #     start_alpha = int(round(255.0*self.percentage_start_state))
+    #     target_alpha = 255 - start_alpha
 
-        start_multiply_surface.fill(pygame.Color(start_alpha, start_alpha, start_alpha, 255))
-        target_multiply_surface.fill(pygame.Color(target_alpha, target_alpha, target_alpha, 255))
+    #     start_multiply_surface.fill(pygame.Color(start_alpha, start_alpha, start_alpha, 255))
+    #     target_multiply_surface.fill(pygame.Color(target_alpha, target_alpha, target_alpha, 255))
 
-        result.blit(start_multiply_surface, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
-        blended_target.blit(target_multiply_surface, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
-        result.blit(blended_target, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
-        return result
+    #     result.blit(start_multiply_surface, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+    #     blended_target.blit(target_multiply_surface, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
+    #     result.blit(blended_target, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
+    #     return result
     
     def produce_blended_result_texture(self) -> TextureLayer:
         """
@@ -160,9 +159,9 @@ class DrawableStateTransition:
         # start_multiply_surface.fill(pygame.Color(start_alpha, start_alpha, start_alpha, 255))
         # target_multiply_surface.fill(pygame.Color(target_alpha, target_alpha, target_alpha, 255))
         
-        result.product_alpha(start_alpha)
-        blended_target.product_alpha(target_alpha)
-        result.extend(blended_target)
+        result.fill_to_render_layer(pygame.Color(start_alpha, start_alpha, start_alpha, 255))
+        blended_target.fill_to_render_layer(pygame.Color(target_alpha, target_alpha, target_alpha, 255))
+        result.merge(blended_target)
         # result.blit(start_multiply_surface, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
         # blended_target.blit(target_multiply_surface, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
         # result.blit(blended_target, (0, 0), special_flags=pygame.BLEND_RGB_ADD)
@@ -244,7 +243,7 @@ class DrawableShape:
         self.need_to_clean_up = True
 
         self.should_trigger_full_rebuild = True
-        self.time_until_full_rebuild_after_changing_size = 0.35
+        self.time_until_full_rebuild_after_changing_size = 10.00
         self.full_rebuild_countdown = self.time_until_full_rebuild_after_changing_size
 
         self.click_area_shape = self.containing_rect.copy()
@@ -318,6 +317,7 @@ class DrawableShape:
             self.previous_state = self.active_state
             self.active_state = self.states[state_id]
             self.active_state.has_fresh_texture = True
+            # self.apply_active_text_changes()
 
             if self.previous_state is not None and ((self.previous_state.state_id,
                                                      self.active_state.state_id) in
@@ -452,21 +452,21 @@ class DrawableShape:
         else:
             return self.ui_manager.get_universal_empty_texture()
 
-    def get_surface(self, state_name: str) -> pygame.surface.Surface:
-        """
-        Get the main surface from a specific state.
+    # def get_surface(self, state_name: str) -> pygame.surface.Surface:
+    #     """
+    #     Get the main surface from a specific state.
 
-        :param state_name: The state we are trying to get the surface from.
+    #     :param state_name: The state we are trying to get the surface from.
 
-        :return: The surface asked for, or the best available substitute.
+    #     :return: The surface asked for, or the best available substitute.
 
-        """
-        if state_name in self.states and self.states[state_name].surface is not None:
-            return self.states[state_name].surface
-        elif state_name in self.states and self.states['normal'].surface is not None:
-            return self.states['normal'].surface
-        else:
-            return pygame.surface.Surface((0, 0), flags=pygame.SRCALPHA, depth=32)
+    #     """
+    #     if state_name in self.states and self.states[state_name].surface is not None:
+    #         return self.states[state_name].surface
+    #     elif state_name in self.states and self.states['normal'].surface is not None:
+    #         return self.states['normal'].surface
+    #     else:
+    #         return pygame.surface.Surface((0, 0), flags=pygame.SRCALPHA, depth=32)
         
     def get_texture(self, state_name: str) -> TextureLayer:
         if state_name in self.states and self.states[state_name].texture is not None:
@@ -478,15 +478,15 @@ class DrawableShape:
             return empty_texture
     
 
-    def get_fresh_surface(self) -> pygame.surface.Surface:
-        """
-        Gets the surface of the active state and resets the state's 'has_fresh_surface' variable.
+    # def get_fresh_surface(self) -> pygame.surface.Surface:
+    #     """
+    #     Gets the surface of the active state and resets the state's 'has_fresh_surface' variable.
 
-        :return: The active state's main pygame.surface.Surface.
+    #     :return: The active state's main pygame.surface.Surface.
 
-        """
-        self.active_state.has_fresh_surface = False
-        return self.get_active_state_surface()
+    #     """
+    #     self.active_state.has_fresh_surface = False
+    #     return self.get_active_state_surface()
     
     def get_fresh_texture(self) -> TextureLayer:
         self.active_state.has_fresh_texture = False
@@ -538,10 +538,10 @@ class DrawableShape:
         #     self.finalise_text(state_str, text_colour_state_str, text_shadow_colour_state_str)
             
         if image_state_str in self.theming and self.theming[image_state_str] is not None:
-            image_rect = self.theming[image_state_str].get_rect()
-            image_rect.center = (int(self.containing_rect.width / 2),
-                                 int(self.containing_rect.height / 2))
-            self.states[state_str].texture.extend(self.theming[image_state_str], dest=image_rect)
+            # image_rect = self.theming[image_state_str].get_rect()
+            # image_rect.center = (int(self.containing_rect.width / 2),
+            #                      int(self.containing_rect.height / 2))
+            self.states[state_str].texture.set_image_texture(self.theming[image_state_str])
         if add_text:
             self.finalise_text(state_str, text_colour_state_str, text_shadow_colour_state_str)
 
@@ -593,7 +593,7 @@ class DrawableShape:
             text_shadow_data = (0, 0, 0, pygame.Color('#10101070'), False)
             if 'text_shadow' in self.theming:
                 text_shadow_data = self.theming['text_shadow']
-            text_chunk = TextLineChunkFTFont(self.renderer,self.theming['text'],
+            text_chunk = TextLineChunkFTFont(self.renderer, self.theming['text'],
                                              self.theming['font'],
                                              underlined=False,
                                              colour=pygame.Color('#FFFFFFFF'),
@@ -634,34 +634,53 @@ class DrawableShape:
         """
         if self.text_box_layout is not None:
             # copy the pre-text surface & create a new empty text surface for this state
-            self.states[state_str].pre_text_texture = self.states[state_str].texture.copy()
+            # self.states[state_str].pre_text_texture = self.states[state_str].texture.copy()
             # self.states[state_str].text_surface = pygame.surface.Surface(
             #     self.states[state_str].surface.get_size(), flags=pygame.SRCALPHA, depth=32)
             # self.states[state_str].text_surface.fill('#00000000')
-            self.states[state_str].text_texture = TextureLayer(self.renderer, size=self.states[state_str].texture.get_size())
-            self.states[state_str].text_texture.fill(pygame.Color(0, 0, 0, 0))
+            # self.states[state_str].text_texture = TextureLayer(self.renderer, size=self.states[state_str].texture.get_real_size(), target=True)
+            self.states['normal'].text_texture = TextureLayer(self.renderer, size=self.states[state_str].texture.get_real_size(), target=True)
+            # self.states[state_str].text_texture.fill(pygame.Color(0, 0, 0, 0))
+            # self.states[state_str].texture.clear_text()
+            # self.states[state_str].texture.clear_text_shadow()
+            # self.states[state_str].texture.clear_top()
             
             if only_text_changed:
 
-                self.text_box_layout.blit_finalised_text_to_texture(self.states[state_str].text_texture)
-                self.states[state_str].texture.extend(self.states[state_str].text_texture, dest=(0, 0))
+                self.text_box_layout.blit_finalised_text_to_texture(self.states['normal'].text_texture)
+                self.states[state_str].texture.text_texture_layer = self.states['normal'].text_texture.copy_text()
+                self.states[state_str].texture.text_shadow_texture_layer = self.states['normal'].text_texture.copy_text_shadow()
+                # self.states[state_str].texture.top_texture_layer = self.states[state_str].text_texture.copy_top()
             else:
                 self.text_box_layout.set_default_text_colour(self.theming[text_colour_state_str])
                 self.text_box_layout.set_default_text_shadow_colour(
                     self.theming[text_shadow_colour_state_str])
-                self.text_box_layout.finalise_to_texture(self.states[state_str].text_texture)
-                self.states[state_str].texture.extend(self.states[state_str].text_texture, dest=(0, 0))
+                self.text_box_layout.finalise_to_texture(self.states['normal'].text_texture)
+                self.states[state_str].texture.text_texture_layer = self.states['normal'].text_texture.copy_text()
+                self.states[state_str].texture.text_shadow_texture_layer = self.states['normal'].text_texture.copy_text_shadow()
+                # self.states[state_str].texture.top_texture_layer = self.states[state_str].text_texture.copy_top()
+            # print('finalise_text', self.states[state_str].texture.text_texture_layer)
 
     def apply_active_text_changes(self):
         """
         Updates the shape surface with any changes to the text surface. Useful when we've made
         small edits to the text surface
+        Now we dont actually need this cause we have different texture layers
         """
+        # if self.text_box_layout is not None:
+        #     for state_id, state in self.states.items():
+        #         if state.pre_text_texture is not None and state.text_texture is not None:
+        #             state.texture = state.pre_text_texture.copy()
+        #             state.texture.extend(state.text_texture, dest=(0, 0))
+        # self.text_box_layout.turn_on_cursor()
         if self.text_box_layout is not None:
             for state_id, state in self.states.items():
-                if state.pre_text_texture is not None and state.text_texture is not None:
-                    state.texture = state.pre_text_texture.copy()
-                    state.texture.extend(state.text_texture, dest=(0, 0))
+                if state.text_texture is not None:
+                    state.texture.text_texture_layer = self.states['normal'].text_texture.copy_text()
+                    state.texture.text_shadow_texture_layer = self.states['normal'].text_texture.copy_text_shadow()
+                    # state.texture.top_texture_layer = state.text_texture.copy_top()
+            self.text_box_layout.turn_on_cursor()
+        pass
 
     def set_text(self, text: str):
         """

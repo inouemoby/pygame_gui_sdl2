@@ -216,7 +216,7 @@ class UILabel(UIElement, IUITextOwnerInterface):
             any_changed = True
 
         if self._check_misc_theme_data_changed(attribute_name='text_shadow_size',
-                                               default_value=0,
+                                               default_value=1,
                                                casting_func=int):
             any_changed = True
 

@@ -2,12 +2,12 @@ import math
 from typing import Dict, List, Union, Tuple, Any
 
 import pygame
-from pygame._sdl2 import Renderer
+from pygame._sdl2 import Renderer, Texture
 
 from pygame_gui_sdl2.core.interfaces import IUIManagerInterface
 from pygame_gui_sdl2.core.colour_gradient import ColourGradient
 from pygame_gui_sdl2.core.drawable_shapes.drawable_shape import DrawableShape
-from pygame_gui_sdl2.core.utility import apply_colour_to_texture, basic_blit
+from pygame_gui_sdl2.core.utility import apply_colour_to_texture, basic_render
 from pygame_gui_sdl2.core.ui_texture import TextureLayer
 
 
@@ -72,8 +72,8 @@ class EllipseDrawableShape(DrawableShape):
                                                            self.shadow_width, 'ellipse')
         else:
             self.click_area_shape = self.containing_rect.copy()
-            self.base_texture = TextureLayer(renderer=self.renderer, size=self.containing_rect.size)
-            self.base_texture.fill(pygame.Color(0, 0, 0, 0))
+            self.base_texture = TextureLayer(renderer=self.renderer, size=self.containing_rect.size, target=True)
+            # self.base_texture.fill(pygame.Color(0, 0, 0, 0))
 
         self.border_rect = pygame.Rect((self.shadow_width,
                                         self.shadow_width),
@@ -174,7 +174,8 @@ class EllipseDrawableShape(DrawableShape):
             found_shape = self.shape_cache.find_texture_in_cache(shape_id)
             # found_shape = None
         if found_shape is not None:
-            self.states[state_str].texture = found_shape.copy()
+            self.states[state_str].texture.clear_background()
+            self.states[state_str].texture.render_to_background(found_shape)
         else:
             self.states[state_str].texture = self.base_texture.copy()
 
@@ -198,7 +199,7 @@ class EllipseDrawableShape(DrawableShape):
             #                                       self.containing_rect.height * aa_amount),
             #                                      flags=pygame.SRCALPHA,
             #                                      depth=32)
-            bab_texture = TextureLayer(renderer=self.renderer, size=(self.containing_rect.width * aa_amount,
+            bab_texture = Texture(renderer=self.renderer, size=(self.containing_rect.width * aa_amount,
                                                   self.containing_rect.height * aa_amount))
             # bab_surface.fill(pygame.Color('#00000000'))
             # bab_texture.fill(pygame.Color(0,0,0,0))
@@ -208,7 +209,7 @@ class EllipseDrawableShape(DrawableShape):
                                                                         self.border_rect,
                                                                         0, aa_amount=aa_amount,
                                                                         clear=False)
-                    self.theming[border_colour_state_str].apply_gradient_to_texture(shape_texture)
+                    self.theming[border_colour_state_str].apply_gradient_to_texture(self.renderer, shape_texture)
                 else:
                     shape_texture = self.clear_and_create_shape_texture(bab_texture,
                                                                         self.border_rect,
@@ -216,19 +217,19 @@ class EllipseDrawableShape(DrawableShape):
                                                                         clear=False)
                     apply_colour_to_texture(self.theming[border_colour_state_str],
                                             shape_texture)
-                basic_blit(bab_texture, shape_texture, self.border_rect)
+                basic_render(bab_texture, shape_texture, self.border_rect)
             if isinstance(self.theming[bg_colour_state_str], ColourGradient):
                 shape_texture = self.clear_and_create_shape_texture(bab_texture,
                                                                     self.background_rect, 1,
                                                                     aa_amount=aa_amount)
-                self.theming[bg_colour_state_str].apply_gradient_to_texture(shape_texture)
+                self.theming[bg_colour_state_str].apply_gradient_to_texture(self.renderer, shape_texture)
             else:
                 shape_texture = self.clear_and_create_shape_texture(bab_texture,
                                                                     self.background_rect, 1,
                                                                     aa_amount=aa_amount)
                 apply_colour_to_texture(self.theming[bg_colour_state_str], shape_texture)
 
-            basic_blit(bab_texture, shape_texture, self.background_rect)
+            basic_render(bab_texture, shape_texture, self.background_rect)
             # apply AA to background
             bab_texture.scale_to(self.containing_rect.size)
 
@@ -239,7 +240,7 @@ class EllipseDrawableShape(DrawableShape):
                 flags=pygame.SRCALPHA, depth=32)
             sub_surface.fill(pygame.Color('#00000000'))
             pygame.draw.ellipse(sub_surface, pygame.Color("#FFFFFFFF"), sub_surface.get_rect())
-            sub_texture = TextureLayer(self.renderer, surface=sub_surface)
+            sub_texture = Texture.from_surface(self.renderer, surface=sub_surface)
             small_sub = sub_texture.copy().scale_to((self.containing_rect.width -
                                             (2 * self.shadow_width),
                                             self.containing_rect.height -
@@ -247,7 +248,7 @@ class EllipseDrawableShape(DrawableShape):
             self.states[state_str].texture.extend(small_sub, dest=pygame.Rect((self.shadow_width,
                                                                         self.shadow_width),
                                                                        sub_texture.get_size()))
-            basic_blit(self.states[state_str].texture, bab_texture, (0, 0))
+            basic_render(self.states[state_str].texture, bab_texture, (0, 0))
 
             if (shape_id is not None and
                     self.states[state_str].texture.get_width() <= 1024 and
@@ -268,7 +269,7 @@ class EllipseDrawableShape(DrawableShape):
                                        rect: pygame.Rect,
                                        overlap: int,
                                        aa_amount: int,
-                                       clear: bool = True) -> TextureLayer:
+                                       clear: bool = True) -> Texture:
         """
         Clear a space for a new shape surface on the main state surface for this state. The
         surface created will be plain white so that it can be easily multiplied with a colour
@@ -291,7 +292,7 @@ class EllipseDrawableShape(DrawableShape):
         large_shape_surface.fill(pygame.Color('#00000000'))
         pygame.draw.ellipse(large_shape_surface, pygame.Color("#FFFFFFFF"),
                             large_shape_surface.get_rect())
-        large_shape_texture = TextureLayer(texture.renderer, surface=large_shape_surface)
+        large_shape_texture = Texture.from_surface(texture.renderer, large_shape_surface)
 
         if clear:
             # before we draw a shape we clear a space for it, to allow for transparency.
@@ -309,7 +310,7 @@ class EllipseDrawableShape(DrawableShape):
             large_sub_surface.fill(pygame.Color('#00000000'))
             pygame.draw.ellipse(large_sub_surface, pygame.Color("#FFFFFFFF"),
                                 large_sub_surface.get_rect())
-            large_sub_texture = TextureLayer(texture.renderer, surface=large_sub_surface)
+            large_sub_texture = Texture.from_surface(texture.renderer, surface=large_sub_surface)
 
-            texture.extend(large_sub_texture, dest=subtract_rect)
+            texture.render_to_background(large_sub_texture, dest=subtract_rect)
         return large_shape_texture

@@ -17,7 +17,7 @@ from pygame_gui_sdl2.core.interfaces.gui_font_interface import IGUIFontInterface
 
 from pygame import Color, Surface, Rect, BLEND_PREMULTIPLIED, BLEND_RGBA_MULT, SRCALPHA
 from pygame.transform import rotozoom, rotate
-from pygame._sdl2 import Renderer
+from pygame._sdl2 import Renderer, Texture
 
 from pygame_gui_sdl2.core.text.text_layout_rect import TextLayoutRect
 from pygame_gui_sdl2.core.colour_gradient import ColourGradient
@@ -185,16 +185,16 @@ class TextLineChunkFTFont(TextLayoutRect):
         if self.underlined:
             self.font.underline_adjustment = 0.5
         if isinstance(self.colour, ColourGradient):
-            texture = self._draw_text_fg_gradient(bg_col, chunk_draw_height, chunk_draw_width,
+            shadow_texture, text_texture, text_rect = self._draw_text_fg_gradient(target_texture, bg_col, chunk_draw_height, chunk_draw_width,
                                                   chunk_x_origin, final_str_text, row_bg_height,
                                                   row_chunk_origin)
 
         elif isinstance(bg_col, ColourGradient):
-            texture = self._draw_text_bg_gradient(bg_col, chunk_draw_height, chunk_draw_width,
+            shadow_texture, text_texture, text_rect = self._draw_text_bg_gradient(target_texture, bg_col, chunk_draw_height, chunk_draw_width,
                                                   chunk_x_origin, final_str_text, row_bg_height,
                                                   row_chunk_origin)
         else:
-            texture = self._draw_text_no_gradient(bg_col, chunk_draw_height, chunk_draw_width,
+            shadow_texture, text_texture, text_rect = self._draw_text_no_gradient(target_texture, bg_col, chunk_draw_height, chunk_draw_width,
                                                   chunk_x_origin, final_str_text, row_bg_height,
                                                   row_chunk_origin)
 
@@ -202,7 +202,7 @@ class TextLineChunkFTFont(TextLayoutRect):
                                                           text_shadow_width,
                                                           x_scroll_offset,
                                                           target_texture,
-                                                          texture)
+                                                          shadow_texture, text_texture, text_rect)
 
         # In case we need to redraw this chunk, keep hold of the input parameters
         self.target_texture = target_texture
@@ -214,7 +214,8 @@ class TextLineChunkFTFont(TextLayoutRect):
         self.letter_end = letter_end
 
     def _finalise_horizontal_scroll(self, target_area, text_shadow_width, x_scroll_offset,
-                                    target_texture, texture):
+                                    target_texture: TextureLayer,
+                                    shadow_texture: Texture, text_texture: Texture, text_rect: Rect):
         # sort out horizontal scrolling
         final_pos = (max(target_area.left, self.left - x_scroll_offset),
                      self.top - self.origin_row_y_adjust)
@@ -229,15 +230,19 @@ class TextLineChunkFTFont(TextLayoutRect):
                             min(target_width, target_area.width),
                             target_area.height)
         if target_width > 0:
-            target_texture.extend(texture, dest=final_pos, area=final_target)
+            target_texture.render_to_text_shadow(shadow_texture, dest=final_pos, area=final_target)
+            # text_final_target = Rect((final_target.left - text_rect.left, final_target.top - text_rect.top), final_target.size)
+            target_texture.render_to_text(text_texture, dest=final_pos, area=final_target)
+        # print("finalise_horizontal_scroll")
         return target_texture
 
-    def _draw_text_no_gradient(self, bg_col, chunk_draw_height, chunk_draw_width, chunk_x_origin,
+    def _draw_text_no_gradient(self, texture_layer: TextureLayer, bg_col, chunk_draw_height, chunk_draw_width, chunk_x_origin,
                                final_str_text, row_bg_height, row_chunk_origin):
 
         text_texture = self.font.render_premul_to(final_str_text, self.colour,
                                                   texture_size=(chunk_draw_width, chunk_draw_height),
                                                   texture_position=(chunk_x_origin, row_chunk_origin))
+        text_texture.blend_mode = 1
         # This is a hacky way to convert text to pre-multiplied alpha with a SDL2 alpha blit
         # text_surface = Surface((chunk_draw_width, chunk_draw_height),
         #                        flags=SRCALPHA, depth=32)
@@ -245,29 +250,39 @@ class TextLineChunkFTFont(TextLayoutRect):
         # self.font.render_to(temp_text_surface, (chunk_x_origin, row_chunk_origin),
         #                     final_str_text, fgcolor=self.colour)
         # text_surface.blit(temp_text_surface, (0, 0), special_flags=pygame.BLEND_ALPHA_SDL2)
-        texture = TextureLayer(self.renderer, size=(chunk_draw_width, row_bg_height))
-        texture.fill(bg_col)
+        # texture = TextureLayer(self.renderer, size=(chunk_draw_width, row_bg_height))
+        # texture.fill(bg_col)
+        new_text_texture = Texture(self.renderer, size=(chunk_draw_width, row_bg_height), target=True)
+        new_text_texture.blend_mode = 1
+        texture_layer.clear_target(new_text_texture)
+        new_text_texture = texture_layer.fill_to_target(new_text_texture, color=bg_col)
+        
+        shadow_texture = Texture(self.renderer, size=(chunk_draw_width, row_bg_height), target=True)
+        shadow_texture.blend_mode = 1
+        texture_layer.clear_target(shadow_texture)
+        
         # center the text in the line
         text_rect = text_texture.get_rect()
         if self.should_centre_from_baseline:
             padless_origin = self.y_origin - self.font_y_padding
             half_padless_origin = int(round(0.5 * padless_origin))
-            text_rect.y = (texture.get_rect().centery -
+            text_rect.y = (new_text_texture.get_rect().centery -
                            self.font_y_padding - half_padless_origin)
         else:
-            text_rect.centery = texture.get_rect().centery
+            text_rect.centery = new_text_texture.get_rect().centery
         # apply any shadow effects
-        self._apply_shadow_effect(texture, text_rect, final_str_text,
-                                  text_texture, (chunk_x_origin, row_chunk_origin))
-        texture.extend(text_texture, dest=text_rect)
-        return texture
+        self._apply_shadow_effect(shadow_texture, text_rect, final_str_text,
+                                  (chunk_x_origin, row_chunk_origin))
+        new_text_texture = texture_layer.render_to_target(text_texture, new_text_texture, dest=text_rect)
+        return shadow_texture, new_text_texture, text_rect
 
-    def _draw_text_bg_gradient(self, bg_col, chunk_draw_height, chunk_draw_width, chunk_x_origin,
+    def _draw_text_bg_gradient(self, texture_layer: TextureLayer, bg_col, chunk_draw_height, chunk_draw_width, chunk_x_origin,
                                final_str_text, row_bg_height, row_chunk_origin):
         # draw the text first
         text_texture = self.font.render_premul_to(final_str_text, self.colour,
                                                   texture_size=(chunk_draw_width, chunk_draw_height),
                                                   texture_position=(chunk_x_origin, row_chunk_origin))
+        text_texture.blend_mode = 1
         # This is a hacky way to convert text to pre-multiplied alpha with a SDL2 alpha blit
         # text_surface = Surface((chunk_draw_width, chunk_draw_height),
         #                               flags=SRCALPHA, depth=32)
@@ -276,24 +291,32 @@ class TextLineChunkFTFont(TextLayoutRect):
         #                     final_str_text, fgcolor=self.colour)
         # text_surface.blit(temp_text_surface, (0, 0), special_flags=pygame.BLEND_ALPHA_SDL2)
         # then make the background
-        texture = TextureLayer(self.renderer, size=(chunk_draw_width, row_bg_height))
-        texture.fill(Color('#FFFFFFFF'))
-        bg_col.apply_gradient_to_texture(texture)
+        # texture = TextureLayer(self.renderer, size=(chunk_draw_width, row_bg_height))
+        new_text_texture = Texture(self.renderer, size=(chunk_draw_width, row_bg_height), target=True)
+        new_text_texture.blend_mode = 1
+        texture_layer.clear_target(new_text_texture)
+        
+        shadow_texture = Texture(self.renderer, size=(chunk_draw_width, row_bg_height), target=True)
+        shadow_texture.blend_mode = 1
+        texture_layer.clear_target(shadow_texture)
+        
+        new_text_texture = texture_layer.fill_to_target(new_text_texture, color=Color('#FFFFFFFF'))
+        bg_col.apply_gradient_to_texture(self.renderer, new_text_texture)
         # center the text in the line
         text_rect = text_texture.get_rect()
         if self.should_centre_from_baseline:
             padless_origin = self.y_origin - self.font_y_padding
             half_padless_origin = int(round(0.5 * padless_origin))
-            text_rect.y = texture.get_rect().centery - self.font_y_padding - half_padless_origin
+            text_rect.y = new_text_texture.get_rect().centery - self.font_y_padding - half_padless_origin
         else:
-            text_rect.centery = texture.get_rect().centery
+            text_rect.centery = new_text_texture.get_rect().centery
         # apply any shadow effects
-        self._apply_shadow_effect(texture, text_rect, final_str_text,
-                                  text_texture, (chunk_x_origin, row_chunk_origin))
-        texture.extend(text_texture, text_rect, special_flags=BLEND_PREMULTIPLIED)
-        return texture
+        self._apply_shadow_effect(shadow_texture, text_rect, final_str_text,
+                                  (chunk_x_origin, row_chunk_origin))
+        new_text_texture = texture_layer.render_to_target(text_texture, new_text_texture, dest=text_rect)
+        return shadow_texture, new_text_texture, text_rect
 
-    def _draw_text_fg_gradient(self, bg_col, chunk_draw_height, chunk_draw_width, chunk_x_origin,
+    def _draw_text_fg_gradient(self, texture_layer: TextureLayer, bg_col, chunk_draw_height, chunk_draw_width, chunk_x_origin,
                                final_str_text, row_bg_height, row_chunk_origin):
         # draw the text first
         # Anti-aliasing on text is not done with pre-multiplied alpha so we need to bake
@@ -303,6 +326,7 @@ class TextLineChunkFTFont(TextLayoutRect):
         text_texture = self.font.render_premul_to(final_str_text, Color('#FFFFFFFF'),
                                                   texture_size=(chunk_draw_width, chunk_draw_height),
                                                   texture_position=(chunk_x_origin, row_chunk_origin))
+        text_texture.blend_mode = 1
         # This is a hacky way to convert text to pre-multiplied alpha with a SDL2 alpha blit
         # text_surface = Surface((chunk_draw_width, chunk_draw_height),
         #                        flags=SRCALPHA, depth=32)
@@ -310,38 +334,44 @@ class TextLineChunkFTFont(TextLayoutRect):
         # self.font.render_to(temp_text_surface, (chunk_x_origin, row_chunk_origin),
         #                     final_str_text, fgcolor=Color('#FFFFFFFF'))
         # text_surface.blit(temp_text_surface, (0, 0), special_flags=pygame.BLEND_ALPHA_SDL2)
-        self.colour.apply_gradient_to_texture(text_texture)
+        self.colour.apply_gradient_to_texture(self.renderer, text_texture)
+        new_text_texture = Texture(self.renderer, size=(chunk_draw_width, row_bg_height), target=True)
+        new_text_texture.blend_mode = 1
+        texture_layer.clear_target(new_text_texture)
+        
+        shadow_texture = Texture(self.renderer, size=(chunk_draw_width, row_bg_height), target=True)
+        shadow_texture.blend_mode = 1
+        texture_layer.clear_target(shadow_texture)
         # then make the background
-        texture = TextureLayer(self.renderer, size=(chunk_draw_width, row_bg_height))
         if isinstance(bg_col, ColourGradient):
-            texture.fill(Color('#FFFFFFFF'))
-            bg_col.apply_gradient_to_texture(texture)
+            new_text_texture = texture_layer.fill_to_target(new_text_texture, Color('#FFFFFFFF'))
+            bg_col.apply_gradient_to_texture(self.renderer, new_text_texture)
         else:
-            texture.fill(bg_col)
+            new_text_texture = texture_layer.fill_to_target(new_text_texture, bg_col)
         # center the text in the line
         text_rect = text_texture.get_rect()
         if self.should_centre_from_baseline:
             padless_origin = self.y_origin - self.font_y_padding
             half_padless_origin = int(round(0.5 * padless_origin))
-            text_rect.y = texture.get_rect().centery - self.font_y_padding - half_padless_origin
+            text_rect.y = new_text_texture.get_rect().centery - self.font_y_padding - half_padless_origin
         else:
-            text_rect.centery = texture.get_rect().centery
+            text_rect.centery = new_text_texture.get_rect().centery
         # apply any shadow effects
-        self._apply_shadow_effect(texture, text_rect, final_str_text,
-                                  text_texture, (chunk_x_origin, row_chunk_origin))
-        texture.extend(text_texture, text_rect, special_flags=BLEND_PREMULTIPLIED)
-        return texture
+        self._apply_shadow_effect(shadow_texture, text_rect, final_str_text,
+                                  (chunk_x_origin, row_chunk_origin))
+        new_text_texture = texture_layer.render_to_target(text_texture, new_text_texture, dest=text_rect)
+        return shadow_texture, new_text_texture, text_rect
 
-    def _apply_shadow_effect(self, texture, text_rect, text_str, text_texture, origin):
+    def _apply_shadow_effect(self, texture: Texture, text_rect, text_str, origin):
         if self.text_shadow_data is not None and self.text_shadow_data[0] != 0:
-
+            # print("applying shadow effect")
             shadow_size = self.text_shadow_data[0]
             shadow_offset = (self.text_shadow_data[1], self.text_shadow_data[2])
             shadow_colour = self.shadow_colour
             # we have a shadow
 
             shadow_texture = self.font.render_premul_to(text_str, shadow_colour,
-                                                        texture_size=text_texture.get_size(),
+                                                        texture_size=text_rect.size,
                                                         texture_position=origin)
             # This is a hacky way to convert text to
             # pre-multiplied alpha with a SDL2 alpha blit
@@ -354,31 +384,33 @@ class TextLineChunkFTFont(TextLayoutRect):
             # shadow_surface.blit(temp_shadow_surface, (0, 0),
             #                     special_flags=pygame.BLEND_ALPHA_SDL2)
 
+            self.renderer.target = texture
             for y_pos in range(-shadow_size, shadow_size + 1):
                 shadow_text_rect = Rect((text_rect.x + shadow_offset[0],
                                          text_rect.y + shadow_offset[1]
                                          + y_pos),
                                         text_rect.size)
 
-                texture.extend(shadow_texture, shadow_text_rect)
+                shadow_texture.draw(dstrect=shadow_text_rect)
             for x_pos in range(-shadow_size, shadow_size + 1):
                 shadow_text_rect = Rect((text_rect.x + shadow_offset[0]
                                          + x_pos,
                                          text_rect.y + shadow_offset[1]),
                                         text_rect.size)
-                texture.extend(shadow_texture, shadow_text_rect)
+                shadow_texture.draw(dstrect=shadow_text_rect)
             for x_and_y in range(-shadow_size, shadow_size + 1):
                 shadow_text_rect = Rect(
                     (text_rect.x + shadow_offset[0] + x_and_y,
                      text_rect.y + shadow_offset[1] + x_and_y),
                     text_rect.size)
-                texture.extend(shadow_texture, shadow_text_rect)
+                shadow_texture.draw(dstrect=shadow_text_rect)
             for x_and_y in range(-shadow_size, shadow_size + 1):
                 shadow_text_rect = Rect(
                     (text_rect.x + shadow_offset[0] - x_and_y,
                      text_rect.y + shadow_offset[1] + x_and_y),
                     text_rect.size)
-                texture.extend(shadow_texture, shadow_text_rect)
+                shadow_texture.draw(dstrect=shadow_text_rect)
+            self.renderer.target = None
 
     def split(self,
               requested_x: int,
@@ -421,8 +453,11 @@ class TextLineChunkFTFont(TextLayoutRect):
             if allow_split_dashes:
                 if optimum_split_point != 1:
                     # have to be at least wide enough to fit in a dash and another character
-                    left_side = self.text[:optimum_split_point] + '-'
-                    right_side = '-' + self.text[optimum_split_point:]
+                    # left_side = self.text[:optimum_split_point] + '-'
+                    # right_side = '-' + self.text[optimum_split_point:]
+                    # split_text_ok = True
+                    left_side = self.text[:optimum_split_point]
+                    right_side = self.text[optimum_split_point:]
                     split_text_ok = True
                 else:
                     raise ValueError('Line width is too narrow')
@@ -512,7 +547,7 @@ class TextLineChunkFTFont(TextLayoutRect):
             print("index is bad at: ", index, "len(self.text): ", len(self.text))
             return None
 
-    def _split_at(self, right_side, split_pos, target_texture,
+    def _split_at(self, right_side, split_pos, target_texture: TextureLayer,
                   target_texture_area, baseline_centred):
         right_side_chunk = TextLineChunkFTFont(self.renderer ,right_side, self.font, self.underlined,
                                                self.colour,
@@ -535,7 +570,13 @@ class TextLineChunkFTFont(TextLayoutRect):
                 clear_rect = optional_rect
             else:
                 clear_rect = self
-            self.target_texture.fill(Color('#00000000'), clear_rect)
+            # self.target_texture.fill_to_background(Color('#00000000'), clear_rect)
+            self.target_texture.fill_to_text_shadow(Color('#00000000'), clear_rect)
+            self.target_texture.fill_to_text(Color('#00000000'), clear_rect)
+            # self.target_texture.clear_background()
+            # self.target_texture.clear_text_shadow()
+            # self.target_texture.clear_text()
+            # print("cleared text chunk")
 
     def add_text(self, input_text: str):
         """
@@ -695,11 +736,20 @@ class TextLineChunkFTFont(TextLayoutRect):
         else:
             if self.pre_effect_target_texture is not None:
                 self.alpha = alpha
-                self.target_texture.extend(self.pre_effect_target_texture, dest=self, area=self)
+                # self.target_texture.clear_render_layer()
+                self.target_texture.fill_to_text_shadow(Color("#00000000"),
+                                         rect=self)
+                self.target_texture.fill_to_text(Color("#00000000"),
+                                         rect=self)
+                self.target_texture.render_to_text_shadow(self.pre_effect_target_texture, dest=self, srcrect=self)
+                self.target_texture.render_to_text(self.pre_effect_target_texture, dest=self, srcrect=self)
                 pre_mul_alpha_colour = Color(self.alpha, self.alpha, self.alpha, self.alpha)
-                self.target_texture.fill(pre_mul_alpha_colour,
-                                         rect=self,
-                                         special_flags=BLEND_RGBA_MULT)
+                # self.target_texture.fill_to_background(pre_mul_alpha_colour,
+                #                          rect=self)
+                self.target_texture.fill_to_text_shadow(pre_mul_alpha_colour,
+                                         rect=self)
+                self.target_texture.fill_to_text(pre_mul_alpha_colour,
+                                         rect=self)
 
     def set_offset_pos(self, offset_pos: Tuple[int, int]):
         """
@@ -719,8 +769,8 @@ class TextLineChunkFTFont(TextLayoutRect):
                                                   self.top + self.effects_offset_pos[1],
                                                   self.width, self.height)
 
-                self.target_texture.extend(self.pre_effect_target_texture,
-                                         dest=self.transform_effect_rect, area=self)
+                self.target_texture.merge(self.pre_effect_target_texture,
+                                         dest=self.transform_effect_rect, srcrect=self)
 
     def set_rotation(self, rotation: int):
         """
@@ -739,14 +789,14 @@ class TextLineChunkFTFont(TextLayoutRect):
                 # other chunks
                 self.effects_rotation = rotation
 
-                temp_texture = TextureLayer(self.renderer, size=self.size)
-                temp_texture.extend(self.pre_effect_target_texture, dest=(0, 0), area=self)
+                temp_texture = TextureLayer(self.renderer, size=self.size, target=True)
+                temp_texture.merge(self.pre_effect_target_texture, dest=(0, 0), area=self)
                 rotated_texture = temp_texture.copy().rotate(rotation)
 
-                self.transform_effect_rect = Rect(self.topleft, rotated_texture.get_size())
+                self.transform_effect_rect = Rect(self.topleft, rotated_texture.get_dstrect_size())
                 self.transform_effect_rect.center = self.center
 
-                self.target_texture.extend(rotated_texture, dest=self.transform_effect_rect)
+                self.target_texture.merge(rotated_texture, dest=self.transform_effect_rect)
 
     def set_scale(self, scale: float):
         """
@@ -765,14 +815,14 @@ class TextLineChunkFTFont(TextLayoutRect):
                 # other chunks
                 self.effects_scale = scale
 
-                temp_texture = TextureLayer(self.renderer, size=self.size)
-                temp_texture.extend(self.pre_effect_target_texture, dest=(0, 0), area=self)
+                temp_texture = TextureLayer(self.renderer, size=self.size, target=True)
+                temp_texture.merge(self.pre_effect_target_texture, dest=(0, 0), srcrect=self)
                 scaled_texture = temp_texture.copy().scale_by((self.effects_scale, self.effects_scale))
 
-                self.transform_effect_rect = Rect(self.topleft, scaled_texture.get_size())
+                self.transform_effect_rect = Rect(self.topleft, scaled_texture.get_dstrect_size())
                 self.transform_effect_rect.center = self.center
 
-                self.target_texture.extend(scaled_texture, dest=self.transform_effect_rect)
+                self.target_texture.merge(scaled_texture, dest=self.transform_effect_rect)
 
     def clear_effects(self):
         """

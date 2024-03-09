@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from typing import Union, List, Dict, Any, Optional
 
 import pygame
+from pygame._sdl2 import Texture
 
 from pygame_gui_sdl2.core.interfaces.gui_font_interface import IGUIFontInterface
 from pygame_gui_sdl2.core.interfaces.font_dictionary_interface import IUIFontDictionaryInterface
@@ -20,7 +21,7 @@ from pygame_gui_sdl2.core.texture_cache import TextureCache
 from pygame_gui_sdl2.core.colour_gradient import ColourGradient
 from pygame_gui_sdl2.core.resource_loaders import IResourceLoader
 from pygame_gui_sdl2.core.colour_parser import parse_colour_or_gradient_string, get_commas_outside_enclosing_glyphs
-from pygame_gui_sdl2.core.ui_texture import TextureLayer
+# from pygame_gui_sdl2.core.ui_texture import TextureLayer
 
 
 # First try importlib
@@ -257,6 +258,7 @@ class UIAppearanceTheme(IUIAppearanceThemeInterface):
                                 texture_resource = self.texture_resources[texture_id]
                             else:
                                 texture_resource = TextureResource(
+                                    self.renderer,
                                     image_resource=image_resource,
                                     sub_texture_rect=image_resource_data['sub_texture_rect'])
                                 self.texture_resources[texture_id] = texture_resource
@@ -271,7 +273,7 @@ class UIAppearanceTheme(IUIAppearanceThemeInterface):
                             if texture_id in self.texture_resources:
                                 texture_resource = self.texture_resources[texture_id]
                             else:
-                                texture_resource = TextureResource(image_resource=image_resource)
+                                texture_resource = TextureResource(self.renderer, image_resource=image_resource)
                                 self.texture_resources[texture_id] = texture_resource
                                 texture_resource.texture = texture_resource.image_resource.loaded_texture
 
@@ -498,7 +500,7 @@ class UIAppearanceTheme(IUIAppearanceThemeInterface):
         self.unique_theming_ids[combined_id] = combined_ids
         return combined_ids
 
-    def get_image(self, image_id: str, combined_element_ids: List[str]) -> TextureLayer:
+    def get_image(self, image_id: str, combined_element_ids: List[str]) -> Texture:
         """
         Will raise an exception if no image with the ids specified is found. UI elements that have
         an optional image display will need to handle the exception.

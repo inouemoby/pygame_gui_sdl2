@@ -264,22 +264,20 @@ class LayeredGUIGroup(LayeredUpdates):
         LayeredUpdates.change_layer(self, sprite, new_layer)
         self.should_update_visibility = True
 
-    def draw(self, texture: TextureLayer):
-        """draw all sprites in the right order onto the given surface
+    def draw(self):
+        """draw all sprites in the right order
 
         """
-        if texture == None:
-            # print("draw ui start")
-            # print(f"visible sprite length is {len(self.visible)}")
-            # print(f"all sprite length is {len(self._spritelist)}")
-            for visible_sprite in self.visible:
+        # print("draw ui start")
+        # print(f"visible sprite length is {len(self.visible)}")
+        # print(f"all sprite length is {len(self._spritelist)}")
+        for visible_sprite in self.visible:
+            if visible_sprite[0] is not None:
                 visible_image = visible_sprite[0]
                 visible_rect = visible_sprite[1]
                 # visible_blend_mode = visible_sprite[3]
                 visible_image.draw(dest=visible_rect)
-                # print(f"{visible_image} is draw at {visible_rect}")
-        else:
-            texture.extend(self.visible)
+            # print(f"{visible_image} is draw at {visible_rect}")
 
     def update(self, *args, **kwargs) -> None:
         super().update(*args, **kwargs)

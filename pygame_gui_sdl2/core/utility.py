@@ -10,6 +10,7 @@ import os
 import sys
 import io
 import base64
+import numpy as np
 
 from pathlib import Path
 from typing import Union, Dict, Tuple, Optional
@@ -20,12 +21,13 @@ from queue import Queue
 import i18n
 
 import pygame
-from pygame_gui_sdl2.global_renderer import global_renderer
+from pygame._sdl2 import Texture, Renderer
+# from pygame_gui_sdl2.global_renderer import global_renderer
 
 from pygame_gui_sdl2.core.interfaces import IUIManagerInterface, IGUIFontInterface
 from pygame_gui_sdl2.core.gui_font_freetype import GUIFontFreetype
 from pygame_gui_sdl2.core.gui_font_pygame import GUIFontPygame
-from pygame_gui_sdl2.core.ui_texture import TextureLayer
+# from pygame_gui_sdl2.core.ui_texture import TextureLayer
 
 
 __default_manager = None  # type: Optional[IUIManagerInterface]
@@ -282,18 +284,18 @@ def premul_alpha_surface(surface: pygame.surface.Surface) -> pygame.surface.Surf
     surface.blit(manipulate_surf, (0, 0), special_flags=pygame.BLEND_RGB_MULT)
     return surface
 
-def premul_alpha_texture(texture: TextureLayer) -> TextureLayer:
-    """
-    Perform a pre-multiply alpha operation on a pygame surface's colours.
-    """
-    texture_copy = texture.copy()
-    texture_copy.fill(pygame.Color('#FFFFFF00'), special_flags=pygame.BLEND_RGB_MAX)
-    manipulate_texture = texture_copy.copy()
-    # Can't be exactly transparent black or we trigger SDL1 'bug'
-    manipulate_texture.fill(pygame.Color('#00000001'))
-    manipulate_texture.extend(texture_copy, dest=(0, 0))
-    texture.extend(manipulate_texture, dest=(0, 0))
-    return texture
+# def premul_alpha_texture(texture: TextureLayer) -> TextureLayer:
+#     """
+#     Perform a pre-multiply alpha operation on a pygame surface's colours.
+#     """
+#     texture_copy = texture.copy()
+#     texture_copy.fill(pygame.Color('#FFFFFF00'), special_flags=pygame.BLEND_RGB_MAX)
+#     manipulate_texture = texture_copy.copy()
+#     # Can't be exactly transparent black or we trigger SDL1 'bug'
+#     manipulate_texture.fill(pygame.Color('#00000001'))
+#     manipulate_texture.extend(texture_copy, dest=(0, 0))
+#     texture.extend(manipulate_texture, dest=(0, 0))
+#     return texture
 
 
 def render_white_text_alpha_black_bg(font: IGUIFontInterface,
@@ -306,9 +308,9 @@ def render_white_text_alpha_black_bg(font: IGUIFontInterface,
     return text_surface
 
 
-def basic_blit(destination: TextureLayer,
-               source: TextureLayer,
-               pos: Union[Tuple[int, int], pygame.Rect],
+def basic_render(destination: Texture,
+               source: Texture,
+               pos: Union[Tuple[int, int], pygame.Rect] = (0, 0),
                area: Union[pygame.Rect, None] = None):
     """
     The basic blitting function to use. WE need to wrap this so we can support pre-multiplied alpha
@@ -320,7 +322,105 @@ def basic_blit(destination: TextureLayer,
     :param area: The area of the source to blit from.
 
     """
-    destination.extend(source, dest=pos, area=area)
+    renderer = destination.renderer
+    if area is None:
+        area = source.get_rect()
+    if pos is None:
+        dstrect = area.copy()
+    elif isinstance(pos, pygame.Rect):
+        dstrect = pos.copy()
+    else:
+        dstrect = pygame.Rect(pos, area.size)
+    destination.blend_mode = 1
+    source.blend_mode = 1
+    renderer.target = destination
+    source.draw(dstrect=dstrect, srcrect=area)
+    renderer.target = None
+ 
+def clear_texture(texture: Texture):
+    renderer = texture.renderer
+    renderer.target = texture
+    renderer.draw_color = pygame.Color("#00000000") 
+    renderer.clear()
+    renderer.target = None
+   
+def copy_texture(target_texture: Texture):
+    renderer = target_texture.renderer
+    target_texture.blend_mode = 1
+    copy_texture = Texture(renderer, size=target_texture.get_rect().size, target=True, scale_quality=2)
+    copy_texture.blend_mode = 1
+    renderer.target = copy_texture
+    clear_texture(copy_texture)
+    target_texture.draw()
+    renderer.target = None
+    return copy_texture
+
+def scale_by_texture(texture: Texture, scale: Tuple[float, float]):
+    renderer = texture.renderer
+    scaled_texture = Texture(renderer, size=(int(texture.get_rect().width * scale[0]), int(texture.get_rect().height * scale[1])), target=True, scale_quality=2)
+    clear_texture(scaled_texture)
+    texture.blend_mode = 1
+    scaled_texture.blend_mode = 1
+    renderer.target = scaled_texture
+    texture.draw()
+    renderer.target = None
+    return scaled_texture
+
+def scale_to_texture(texture: Texture, size: Tuple[int, int]):
+    renderer = texture.renderer
+    scaled_texture = Texture(renderer, size=size, target=True, scale_quality=2)
+    clear_texture(scaled_texture)
+    texture.blend_mode = 1
+    scaled_texture.blend_mode = 1
+    renderer.target = scaled_texture
+    texture.draw()
+    renderer.target = None
+    return scaled_texture
+
+def rotate_texture(texture: Texture, angle: float):
+    renderer = texture.renderer
+    new_size = (int(texture.get_rect().width * np.cos(angle) + texture.get_rect().height * np.sin(angle)), 
+                int(texture.get_rect().height * np.cos(angle) + texture.get_rect().width * np.sin(angle)))
+    rotated_texture = Texture(renderer, size=new_size, target=True, scale_quality=2)
+    clear_texture(rotated_texture)
+    texture.blend_mode = 1
+    rotated_texture.blend_mode = 1
+    renderer.target = rotated_texture
+    texture.draw(dstrect=texture.get_rect(), angle=angle)
+    renderer.target = None
+    return rotated_texture
+    
+def flip_texture(texture: Texture, x: bool, y: bool):
+    renderer = texture.renderer
+    flipped_texture = Texture(renderer, size=texture.get_rect().size, target=True, scale_quality=2)
+    clear_texture(flipped_texture)
+    texture.blend_mode = 1
+    flipped_texture.blend_mode = 1
+    renderer.target = flipped_texture
+    texture.draw(flip_x=x, flip_y=y)
+    renderer.target = None
+    return flipped_texture
+
+def apply_colour_to_texture(colour: pygame.Color,
+                            shape_texture: Texture,
+                            rect: Union[pygame.Rect, None] = None):
+    """
+    Apply a colour to a shape surface by multiplication blend. This works best when the shape
+    surface is predominantly white.
+
+    :param colour: The colour to apply.
+    :param shape_surface: The shape surface to apply the colour to.
+    :param rect: A rectangle to apply the colour inside of.
+
+    """
+    color_surface = pygame.Surface(size=(1,1), flags=pygame.SRCALPHA, depth=32)
+    color_surface.fill(colour)
+    renderer = shape_texture.renderer
+    color_texture = Texture.from_surface(shape_texture.renderer, surface=color_surface)
+    if rect is not None:
+        basic_render(shape_texture, color_texture, pos=rect)
+    else:
+        basic_render(shape_texture, color_texture, pos=shape_texture.get_rect())
 
 
 def apply_colour_to_surface(colour: pygame.Color,
@@ -345,22 +445,22 @@ def apply_colour_to_surface(colour: pygame.Color,
         colour_surface.fill(colour)
         shape_surface.blit(colour_surface, (0, 0), special_flags=pygame.BLEND_RGBA_MULT)
         
-def apply_colour_to_texture(colour: pygame.Color,
-                            shape_texture: TextureLayer,
-                            rect: Union[pygame.Rect, None] = None):
-    """
-    Apply a colour to a shape surface by multiplication blend. This works best when the shape
-    surface is predominantly white.
+# def apply_colour_to_texture(colour: pygame.Color,
+#                             shape_texture: TextureLayer,
+#                             rect: Union[pygame.Rect, None] = None):
+#     """
+#     Apply a colour to a shape surface by multiplication blend. This works best when the shape
+#     surface is predominantly white.
 
-    :param colour: The colour to apply.
-    :param shape_surface: The shape surface to apply the colour to.
-    :param rect: A rectangle to apply the colour inside of.
+#     :param colour: The colour to apply.
+#     :param shape_surface: The shape surface to apply the colour to.
+#     :param rect: A rectangle to apply the colour inside of.
 
-    """
-    if rect is not None:
-        shape_texture.fill(colour, rect)
-    else:
-        shape_texture.extend(colour)
+#     """
+#     if rect is not None:
+#         shape_texture.fill(colour, rect)
+#     else:
+#         shape_texture.extend(colour)
 
 
 class PackageResource:
@@ -484,7 +584,7 @@ class ImageResource:
         self.image_id = image_id
         self.location = location
         self.loaded_surface: Optional[pygame.Surface] = None
-        self.loaded_texture: Optional[TextureLayer] = None
+        self.loaded_texture: Optional[Texture] = None
 
     def load(self) -> Union[Exception, None]:
         """
@@ -513,7 +613,8 @@ class ImageResource:
         # perform pre-multiply alpha operation
         if error is None and self.loaded_surface is not None:
             premul_alpha_surface(self.loaded_surface)
-            self.loaded_texture = TextureLayer(self.renderer, surface=self.loaded_surface)
+            self.loaded_texture = Texture.from_surface(self.renderer, surface=self.loaded_surface)
+            self.loaded_texture.blend_mode = 1
         return error
 
 
@@ -590,7 +691,7 @@ class TextureResource:
         self.renderer = renderer
         self.image_resource = image_resource
         self.sub_texture_rect = sub_texture_rect
-        self._texture: Optional[TextureLayer] = None
+        self._texture: Optional[Texture] = None
 
     def load(self) -> Union[Exception, None]:
         """
@@ -601,13 +702,18 @@ class TextureResource:
         error = None
         if self.sub_texture_rect and self.image_resource.loaded_texture is not None:
             try:
-                self.texture = self.image_resource.loaded_texture.subtexture(self.sub_texture_rect)
+                # self.texture = self.image_resource.loaded_texture.subtexture(self.sub_texture_rect)
+                sub_texture = Texture(self.renderer, size=self.sub_texture_rect.size, target=True, scale_quality=2)
+                self.renderer.target = sub_texture
+                self.image_resource.loaded_texture.draw(srcrect=self.sub_texture_rect)
+                self.renderer.target = None
+                self.texture = sub_texture
             except(pygame.error, OSError) as err:
                 error = err
         return error
 
     @property
-    def texture(self) -> TextureLayer:
+    def texture(self) -> Texture:
         """
         Get the Pygame Surface
         """
@@ -617,16 +723,17 @@ class TextureResource:
             return self.image_resource.loaded_texture
 
         # Return an empty surface here, error elsewhere
-        return TextureLayer(self.renderer, size=(0, 0))
+        return Texture(self.renderer, size=(0, 0))
 
     @texture.setter
-    def texture(self, texture: TextureLayer):
+    def texture(self, texture: Texture):
         """
         Set the Pygame surface.
 
         :param surface: The Surface to set to.
         """
         self._texture = texture
+        self._texture.blend_mode = 1
 
 
 class ClosableQueue(Queue):

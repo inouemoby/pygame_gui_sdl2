@@ -1,7 +1,7 @@
 from typing import Optional
 
 import pygame
-from pygame._sdl2 import Renderer
+from pygame._sdl2 import Renderer, Texture
 from pygame.surface import Surface
 from pygame.rect import Rect
 from pygame.image import load
@@ -16,7 +16,8 @@ class ImageLayoutRect(TextLayoutRect):
     def __init__(self, renderer: Renderer, image_path, float_position, padding: Padding):
         self.renderer = renderer
         self.image_path = image_path
-        self.image_text = TextureLayer(renderer, surface=load(image_path).convert_alpha().premul_alpha())
+        self.image_text = Texture.from_surface(renderer, surface=load(image_path).convert_alpha().premul_alpha())
+        self.image_text.blend_mode = 1
         self.padding = padding
         self.size_with_padding = (self.image_text.get_width() + padding.left + padding.right,
                                   self.image_text.get_height() + padding.top + padding.bottom)
@@ -35,4 +36,4 @@ class ImageLayoutRect(TextLayoutRect):
         blit_rect.height -= (self.padding.top + self.padding.bottom)
         blit_rect.left += self.padding.left
         blit_rect.top += self.padding.top
-        target_texture.extend(self.image_text, dest=blit_rect, area=target_area)
+        target_texture.render_to_text(self.image_text, dest=blit_rect, area=target_area)

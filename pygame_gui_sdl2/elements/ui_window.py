@@ -428,11 +428,11 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
         elements in this window, and remove if from the window stack.
         """
         # old event - to be removed in 0.8.0
-        window_close_event = pygame.event.Event(pygame.USEREVENT,
-                                                {'user_type': OldType(UI_WINDOW_CLOSE),
-                                                 'ui_element': self,
-                                                 'ui_object_id': self.most_specific_combined_id})
-        pygame.event.post(window_close_event)
+        # window_close_event = pygame.event.Event(pygame.USEREVENT,
+        #                                         {'user_type': OldType(UI_WINDOW_CLOSE),
+        #                                          'ui_element': self,
+        #                                          'ui_object_id': self.most_specific_combined_id})
+        # pygame.event.post(window_close_event)
 
         # new event
         window_close_event = pygame.event.Event(UI_WINDOW_CLOSE,
@@ -683,11 +683,11 @@ class UIWindow(UIElement, IContainerLikeInterface, IWindowInterface):
         Called when a window is moved to the front of the stack.
         """
         # old event - to be removed in 0.8.0
-        window_front_event = pygame.event.Event(pygame.USEREVENT,
-                                                {'user_type': OldType(UI_WINDOW_MOVED_TO_FRONT),
-                                                 'ui_element': self,
-                                                 'ui_object_id': self.most_specific_combined_id})
-        pygame.event.post(window_front_event)
+        # window_front_event = pygame.event.Event(pygame.USEREVENT,
+        #                                         {'user_type': OldType(UI_WINDOW_MOVED_TO_FRONT),
+        #                                          'ui_element': self,
+        #                                          'ui_object_id': self.most_specific_combined_id})
+        # pygame.event.post(window_front_event)
 
         # new event
         window_front_event = pygame.event.Event(UI_WINDOW_MOVED_TO_FRONT,

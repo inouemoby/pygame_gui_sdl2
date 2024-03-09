@@ -6,7 +6,7 @@ import warnings
 import pygame
 
 from pygame.surface import Surface
-from pygame._sdl2 import Renderer
+from pygame._sdl2 import Renderer, Texture
 
 from pygame_gui_sdl2.core.text.text_layout_rect import TextLayoutRect, TextFloatPosition
 from pygame_gui_sdl2.core.text.line_break_layout_rect import LineBreakLayoutRect
@@ -18,7 +18,7 @@ from pygame_gui_sdl2.core.text.text_box_layout_row import TextBoxLayoutRow
 from pygame_gui_sdl2.core.text.html_parser import HTMLParser
 from pygame_gui_sdl2.core.ui_texture import TextureLayer
 
-from pygame_gui_sdl2.core.utility import basic_blit
+from pygame_gui_sdl2.core.utility import basic_render
 
 
 class TextBoxLayout:
@@ -339,12 +339,12 @@ class TextBoxLayout:
 
         # And then start a new one.
         if floater_height is not None:
-            new_row = TextBoxLayoutRow(row_start_x=self.layout_rect.x,
+            new_row = TextBoxLayoutRow(self.renderer, row_start_x=self.layout_rect.x,
                                        row_start_y=floater_height,
                                        row_index=len(self.layout_rows),
                                        layout=self, line_spacing=self.line_spacing)
         else:
-            new_row = TextBoxLayoutRow(row_start_x=self.layout_rect.x,
+            new_row = TextBoxLayoutRow(self.renderer, row_start_x=self.layout_rect.x,
                                        row_start_y=current_row.bottom,
                                        row_index=len(self.layout_rows),
                                        layout=self, line_spacing=self.line_spacing)
@@ -377,6 +377,7 @@ class TextBoxLayout:
             floating_rect.finalise(texture, self.view_rect, 0, 0, 0)
 
         self.finalised_texture = texture
+        # print("Finalised texture size:", self.finalised_texture.get_real_size())
 
     def blit_finalised_text_to_texture(self, texture: TextureLayer):
         """
@@ -385,16 +386,21 @@ class TextBoxLayout:
 
         :param surface: the target surface to blit onto.
         """
-        if self.finalised_texture is not None:
-            basic_blit(texture, self.finalised_texture, (0, 0))
+        if (self.finalised_texture is not None):
+            texture.clear_text_shadow()
+            texture.clear_text()
+            # texture.clear_top()
+            texture.text_shadow_texture_layer = self.finalised_texture.copy_text_shadow()
+            texture.text_texture_layer = self.finalised_texture.copy_text()
+            # texture.top_texture_layer = self.finalised_texture.copy_top()
+            # print("Blitted finalised texture")
 
     def finalise_to_new(self):
         """
         Finalises our layout to a brand new surface that this method creates.
         """
         self.finalised_texture = TextureLayer(self.renderer, size=(self.layout_rect.width + self.edit_buffer,
-                                                         self.layout_rect.height))
-        self.finalised_texture.fill(pygame.Color('#00000000'))
+                                                         self.layout_rect.height), target=True)
         self.finalise_to_texture(self.finalised_texture)
 
         return self.finalised_texture
@@ -431,7 +437,10 @@ class TextBoxLayout:
         Clears the finalised surface.
         """
         if self.finalised_texture is not None:
-            self.finalised_texture.fill('#00000000')
+            self.finalised_texture.clear_text_shadow()
+            self.finalised_texture.clear_text()
+            # self.finalised_texture.clear_top()
+            # print("Cleared finalised texture")
 
     def set_alpha(self, alpha: int):
         """
@@ -450,8 +459,9 @@ class TextBoxLayout:
             self.finalised_texture = self.pre_alpha_final_texture.copy()
             pre_mul_alpha_colour = pygame.Color(self.alpha, self.alpha,
                                                 self.alpha, self.alpha)
-            self.finalised_texture.fill(pre_mul_alpha_colour,
-                                        special_flags=pygame.BLEND_RGBA_MULT)
+            self.finalised_texture.fill_to_text_shadow(pre_mul_alpha_colour)
+            self.finalised_texture.fill_to_text(pre_mul_alpha_colour)
+            # print("Set finalised_texture alpha to:", self.alpha)
 
     def add_chunks_to_hover_group(self, link_hover_chunks: List[TextLayoutRect]):
         """
@@ -493,7 +503,7 @@ class TextBoxLayout:
 
         if self.finalised_texture is not None:
             if ((self.layout_rect.width + self.edit_buffer,
-                 self.layout_rect.height) != self.finalised_texture.get_size()):
+                 self.layout_rect.height) != self.finalised_texture.get_real_size()):
                 self.finalise_to_new()
             else:
                 for row in self.layout_rows[row_index:]:
@@ -1168,7 +1178,7 @@ class TextBoxLayout:
             if self.finalised_texture is not None:
 
                 if ((self.layout_rect.width + self.edit_buffer,
-                     self.layout_rect.height) != self.finalised_texture.get_size()):
+                     self.layout_rect.height) != self.finalised_texture.get_real_size()):
                     self.finalise_to_new()
                 else:
                     for row in self.layout_rows[last_row.row_index:]:

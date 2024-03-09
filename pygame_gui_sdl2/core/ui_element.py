@@ -9,7 +9,7 @@ from pygame._sdl2 import Renderer
 from pygame_gui_sdl2.core.interfaces import IUIElementInterface
 from pygame_gui_sdl2.core.interfaces import IContainerLikeInterface, IUIManagerInterface
 from pygame_gui_sdl2.core.utility import render_white_text_alpha_black_bg
-from pygame_gui_sdl2.core.utility import basic_blit
+from pygame_gui_sdl2.core.utility import basic_render
 from pygame_gui_sdl2.core.layered_gui_group import GUISprite
 from pygame_gui_sdl2.core.utility import get_default_manager
 from pygame_gui_sdl2.core.object_id import ObjectID
@@ -129,6 +129,7 @@ class UIElement(GUISprite, IUIElementInterface):
 
         self.drawable_shape = None  # type: Union['DrawableShape', None]
         self.image = None
+        # self.background_colour = None
 
         if visible:
             self.visible = 1
@@ -988,20 +989,20 @@ class UIElement(GUISprite, IUIElementInterface):
                 # check if our surface is big enough to hold the debug info,
                 # if not make a new, bigger copy
                 make_new_larger_texture = False
-                texture_width = self.image.get_width()
-                texture_height = self.image.get_height()
-                if self.image.get_width() < layer_text_render.get_width():
+                texture_width = self.image.get_dstrect_width()
+                texture_height = self.image.get_dstrect_height()
+                if self.image.get_dstrect_width() < layer_text_render.get_width():
                     make_new_larger_texture = True
                     texture_width = layer_text_render.get_width()
-                if self.image.get_height() < layer_text_render.get_height():
+                if self.image.get_dstrect_height() < layer_text_render.get_height():
                     make_new_larger_texture = True
                     texture_height = layer_text_render.get_height()
 
                 if make_new_larger_texture:
                     new_texture = TextureLayer(self.renderer, size=(texture_width, texture_height))
-                    basic_blit(new_texture, self.image, (0, 0))
+                    new_texture.render_to_top(self.image)
                     self._set_image(new_texture)
-                basic_blit(self.image, layer_text_render, (0, 0))
+                basic_render(self.image, layer_text_render, (0, 0))
             else:
                 self._set_image(layer_text_render)
             self._visual_debug_mode = True
@@ -1035,7 +1036,7 @@ class UIElement(GUISprite, IUIElementInterface):
         """
         if rect is not None:
             self._image_clip = rect
-            if self.image is not None and self.image.get_size() != (1, 1):
+            if self.image is not None and self.image.get_dstrect_size() != (0, 0):
                 rect.width = max(rect.width, 0)
                 rect.height = max(rect.height, 0)
 
@@ -1070,7 +1071,7 @@ class UIElement(GUISprite, IUIElementInterface):
                       "most elements from version 0.8.0", DeprecationWarning, stacklevel=2)
         self._set_image(new_image)
 
-    def _set_image(self, new_image: Union[TextureLayer, None], srcrect: pygame.Rect=None, dstrect: Union[pygame.Rect, Tuple[int, int]] = None):
+    def _set_image(self, new_image: Union[TextureLayer, None]):
         """
         Wraps setting the image variable of this element so that we also set the current image
         clip on the image at the same time.
@@ -1078,25 +1079,31 @@ class UIElement(GUISprite, IUIElementInterface):
         :param new_image: The new image to set.
 
         """
-        if new_image is not None and new_image.get_size() != (1, 1) and self.rect.width > 0 and self.rect.height > 0:
-            # self._pre_clipped_image = new_image
-            if srcrect is None:
-                srcrect = new_image.get_rect()
-            if dstrect is None:
-                dstrect = srcrect.copy()
-                dstrect.left = self.rect.width - dstrect.width
-                dstrect.top = self.rect.height - dstrect.height
-            elif isinstance(dstrect, Tuple):
-                left, top = dstrect
-                dstrect = srcrect.copy()
-                dstrect.left = left
-                dstrect.top = top
+        if new_image is not None and new_image.get_dstrect_size() != (1, 1) and self.rect.width > 0 and self.rect.height > 0:
+            # # self._pre_clipped_image = new_image
+            # if srcrect is None:
+            #     srcrect = new_image.get_dstrect()
+            # if dstrect is None:
+            #     dstrect = srcrect.copy()
+            #     dstrect.left = self.rect.width - dstrect.width
+            #     dstrect.top = self.rect.height - dstrect.height
+            # elif isinstance(dstrect, Tuple):
+            #     left, top = dstrect
+            #     dstrect = srcrect.copy()
+            #     dstrect.left = left
+            #     dstrect.top = top
             
             # new_size = (self.rect.width, self.rect.height)
-            
-            self.image = TextureLayer(self.renderer, size=self.rect.size)
-            self.image.fill(pygame.Color('#00000000'))
-            self.image.extend(new_image, srcrect, dstrect=dstrect)
+            # self.image = TextureLayer(self.renderer, size=self.rect.size, target=True)
+            # self.image.merge(new_image)
+            self.image = new_image
+            # if self.background_colour is not None:
+            #     self.image.fill(self.background_colour)
+            # # elif self.background_color is not None:
+            # #     self.image.fill(self.background_color)
+            # else:
+            # self.image.fill('#00000000')
+            # self.image.extend(new_image, srcrect, dstrect=dstrect)
             
             self._pre_clipped_image = self.image.copy()
             if self.get_image_clipping_rect() is None:

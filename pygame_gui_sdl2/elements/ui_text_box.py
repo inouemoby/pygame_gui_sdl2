@@ -17,7 +17,7 @@ from pygame_gui_sdl2.core.interfaces import IContainerLikeInterface, IUIManagerI
 from pygame_gui_sdl2.core.interfaces import IUITextOwnerInterface
 from pygame_gui_sdl2.core.ui_element import UIElement
 from pygame_gui_sdl2.core.drawable_shapes import RectDrawableShape, RoundedRectangleShape
-from pygame_gui_sdl2.core.utility import basic_blit
+from pygame_gui_sdl2.core.utility import basic_render
 
 from pygame_gui_sdl2.elements.ui_vertical_scroll_bar import UIVerticalScrollBar
 
@@ -27,6 +27,7 @@ from pygame_gui_sdl2.core.text.text_line_chunk import TextLineChunkFTFont
 from pygame_gui_sdl2.core.text.text_effects import TextEffect, TypingAppearEffect, FadeInEffect, FadeOutEffect
 from pygame_gui_sdl2.core.text.text_effects import BounceEffect, TiltEffect, ExpandContractEffect, ShakeEffect
 
+from pygame_gui_sdl2._constants import *
 
 class UITextBox(UIElement, IUITextOwnerInterface):
     """
@@ -298,10 +299,10 @@ class UITextBox(UIElement, IUITextOwnerInterface):
                               'shape_corner_radius': self.shape_corner_radius}
 
         if self.shape == 'rectangle':
-            self.drawable_shape = RectDrawableShape(self.renderer,self.rect, theming_parameters,
+            self.drawable_shape = RectDrawableShape(self.renderer, self.rect, theming_parameters,
                                                     ['normal'], self.ui_manager)
         elif self.shape == 'rounded_rectangle':
-            self.drawable_shape = RoundedRectangleShape(self.renderer,self.rect, theming_parameters,
+            self.drawable_shape = RoundedRectangleShape(self.renderer, self.rect, theming_parameters,
                                                         ['normal'], self.ui_manager)
 
         self.background_texture = self.drawable_shape.get_fresh_texture()
@@ -317,16 +318,16 @@ class UITextBox(UIElement, IUITextOwnerInterface):
 
         drawable_area = pygame.Rect((0, height_adjustment),
                                     drawable_area_size)
-        new_image = TextureLayer(self.renderer, size=self.rect.size)
-        new_image.fill(pygame.Color(0, 0, 0, 0))
-        basic_blit(new_image, self.background_texture, (0, 0))
+        new_image = TextureLayer(self.renderer, size=self.rect.size, target=True)
+        # new_image.fill(pygame.Color(0, 0, 0, 0))
+        new_image.background_texture_layer = self.background_texture.copy_background()
 
-        basic_blit(new_image, self.text_box_layout.finalised_texture,
-                   (self.padding[0] + self.border_width +
+        new_image.merge_text(self.text_box_layout.finalised_texture,
+                   dstrect=pygame.Rect((self.padding[0] + self.border_width +
                     self.shadow_width + self.rounded_corner_offset,
                     self.padding[1] + self.border_width +
-                    self.shadow_width + self.rounded_corner_offset),
-                   drawable_area)
+                    self.shadow_width + self.rounded_corner_offset), drawable_area_size),
+                   srcrect=drawable_area)
 
         self._set_image(new_image)
         self.link_hover_chunks = []
@@ -397,17 +398,16 @@ class UITextBox(UIElement, IUITextOwnerInterface):
             if self.rect.width <= 0 or self.rect.height <= 0:
                 return
 
-            new_image = TextureLayer(self.renderer, size=self.rect.size)
-            new_image.fill(pygame.Color(0, 0, 0, 0))
-            basic_blit(new_image, self.background_texture, (0, 0))
-            basic_blit(new_image, self.text_box_layout.finalised_texture,
-                       (self.padding[0] + self.border_width +
-                        self.shadow_width +
-                        self.rounded_corner_offset,
-                        self.padding[1] + self.border_width +
-                        self.shadow_width +
-                        self.rounded_corner_offset),
-                       drawable_area)
+            new_image = TextureLayer(self.renderer, size=self.rect.size, target=True)
+            # new_image.fill(pygame.Color(0, 0, 0, 0))
+            new_image.background_texture_layer = self.background_texture.copy_background()
+
+            new_image.merge_text(self.text_box_layout.finalised_texture,
+                   dstrect=pygame.Rect((self.padding[0] + self.border_width +
+                    self.shadow_width + self.rounded_corner_offset,
+                    self.padding[1] + self.border_width +
+                    self.shadow_width + self.rounded_corner_offset), drawable_area_size),
+                   srcrect=drawable_area)
             self._set_image(new_image)
 
         if len(self.link_hover_chunks) > 0:
@@ -527,9 +527,9 @@ class UITextBox(UIElement, IUITextOwnerInterface):
                 if (self.full_rebuild_countdown > 0.0 and
                         (self.relative_rect.width > 0 and
                          self.relative_rect.height > 0)):
-                    new_image = TextureLayer(self.renderer, size=self.relative_rect.size)
-                    new_image.fill(pygame.Color('#00000000'))
-                    basic_blit(new_image, self.image, (0, 0))
+                    new_image = TextureLayer(self.renderer, size=self.relative_rect.size, target=True)
+                    # new_image.fill(pygame.Color('#00000000'))
+                    new_image.merge(self.image, scale_type=FILL)
                     self._set_image(new_image)
 
                     if self.scroll_bar is not None:
@@ -618,15 +618,16 @@ class UITextBox(UIElement, IUITextOwnerInterface):
                                           (2 * self.rounded_corner_offset))))
             drawable_area = pygame.Rect((0, height_adjustment),
                                         drawable_area_size)
-            new_image = TextureLayer(self.renderer, size=self.rect.size)
-            new_image.fill(pygame.Color(0, 0, 0, 0))
-            basic_blit(new_image, self.background_texture, (0, 0))
-            basic_blit(new_image, self.text_box_layout.finalised_texture,
-                       (self.padding[0] + self.border_width +
-                        self.shadow_width + self.rounded_corner_offset,
-                        self.padding[1] + self.border_width +
-                        self.shadow_width + self.rounded_corner_offset),
-                       drawable_area)
+            new_image = TextureLayer(self.renderer, size=self.rect.size, target=True)
+            # new_image.fill(pygame.Color(0, 0, 0, 0))
+            new_image.background_texture_layer = self.background_texture.copy_background()
+
+            new_image.merge_text(self.text_box_layout.finalised_texture,
+                   dstrect=pygame.Rect((self.padding[0] + self.border_width +
+                    self.shadow_width + self.rounded_corner_offset,
+                    self.padding[1] + self.border_width +
+                    self.shadow_width + self.rounded_corner_offset), drawable_area_size),
+                   srcrect=drawable_area)
             self._set_image(new_image)
 
     def redraw_from_chunks(self):
@@ -719,11 +720,11 @@ class UITextBox(UIElement, IUITextOwnerInterface):
                     if chunk.is_active:
 
                         # old event - to be removed in 0.8.0
-                        event_data = {'user_type': OldType(UI_TEXT_BOX_LINK_CLICKED),
-                                      'link_target': chunk.href,
-                                      'ui_element': self,
-                                      'ui_object_id': self.most_specific_combined_id}
-                        pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
+                        # event_data = {'user_type': OldType(UI_TEXT_BOX_LINK_CLICKED),
+                        #               'link_target': chunk.href,
+                        #               'ui_element': self,
+                        #               'ui_object_id': self.most_specific_combined_id}
+                        # pygame.event.post(pygame.event.Event(pygame.USEREVENT, event_data))
 
                         # new event
                         event_data = {'link_target': chunk.href,

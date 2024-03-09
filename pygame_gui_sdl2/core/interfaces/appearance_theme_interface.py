@@ -10,7 +10,7 @@ import pygame
 from pygame_gui_sdl2.core.interfaces.font_dictionary_interface import IUIFontDictionaryInterface
 from pygame_gui_sdl2.core.interfaces.colour_gradient_interface import IColourGradientInterface
 from pygame_gui_sdl2.core.interfaces.gui_font_interface import IGUIFontInterface
-from pygame_gui_sdl2.core.ui_texture import TextureLayer
+from pygame._sdl2 import Texture
 
 
 class IUIAppearanceThemeInterface(metaclass=ABCMeta):
@@ -72,7 +72,7 @@ class IUIAppearanceThemeInterface(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_image(self, image_id: str, combined_element_ids: List[str]) -> TextureLayer:
+    def get_image(self, image_id: str, combined_element_ids: List[str]) -> Texture:
         """
         Will raise an exception if no image with the ids specified is found. UI elements that have
         an optional image display will need to handle the exception.
