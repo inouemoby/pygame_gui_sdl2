@@ -243,7 +243,7 @@ class DrawableShape:
         self.need_to_clean_up = True
 
         self.should_trigger_full_rebuild = True
-        self.time_until_full_rebuild_after_changing_size = 10.00
+        self.time_until_full_rebuild_after_changing_size = 0.35
         self.full_rebuild_countdown = self.time_until_full_rebuild_after_changing_size
 
         self.click_area_shape = self.containing_rect.copy()
@@ -363,6 +363,8 @@ class DrawableShape:
 
         if self.should_trigger_full_rebuild and self.full_rebuild_countdown <= 0.0:
             self.full_rebuild_on_size_change()
+            
+        # self.finalise_text(self.active_state.state_id, only_text_changed=True)
 
         self.active_state.update(time_delta)
 
@@ -638,26 +640,35 @@ class DrawableShape:
             # self.states[state_str].text_surface = pygame.surface.Surface(
             #     self.states[state_str].surface.get_size(), flags=pygame.SRCALPHA, depth=32)
             # self.states[state_str].text_surface.fill('#00000000')
-            # self.states[state_str].text_texture = TextureLayer(self.renderer, size=self.states[state_str].texture.get_real_size(), target=True)
             self.states['normal'].text_texture = TextureLayer(self.renderer, size=self.states[state_str].texture.get_real_size(), target=True)
+            # if self.states['normal'].text_texture is None:
+            #     self.states['normal'].text_texture = TextureLayer(self.renderer, size=self.states[state_str].texture.get_real_size(), target=True)
+            # else:
+            #     # self.states['normal'].text_texture.clear_text()
+            #     # self.states['normal'].text_texture.clear_text_shadow()
+            #     pass
+            # self.states[state_str].texture.text_texture_layer = self.states['normal'].text_texture.text_texture_layer
+            # self.states[state_str].texture.text_shadow_texture_layer = self.states['normal'].text_texture.text_shadow_texture_layer
             # self.states[state_str].text_texture.fill(pygame.Color(0, 0, 0, 0))
             # self.states[state_str].texture.clear_text()
             # self.states[state_str].texture.clear_text_shadow()
             # self.states[state_str].texture.clear_top()
             
             if only_text_changed:
-
+                pass
                 self.text_box_layout.blit_finalised_text_to_texture(self.states['normal'].text_texture)
-                self.states[state_str].texture.text_texture_layer = self.states['normal'].text_texture.copy_text()
-                self.states[state_str].texture.text_shadow_texture_layer = self.states['normal'].text_texture.copy_text_shadow()
+                # self.states[state_str].texture.text_texture_layer = self.states['normal'].text_texture.copy_text()
+                # self.states[state_str].texture.text_shadow_texture_layer = self.states['normal'].text_texture.copy_text_shadow()
+                self.states[state_str].texture.merge_text(self.text_box_layout.finalised_texture)
                 # self.states[state_str].texture.top_texture_layer = self.states[state_str].text_texture.copy_top()
             else:
                 self.text_box_layout.set_default_text_colour(self.theming[text_colour_state_str])
                 self.text_box_layout.set_default_text_shadow_colour(
                     self.theming[text_shadow_colour_state_str])
                 self.text_box_layout.finalise_to_texture(self.states['normal'].text_texture)
-                self.states[state_str].texture.text_texture_layer = self.states['normal'].text_texture.copy_text()
-                self.states[state_str].texture.text_shadow_texture_layer = self.states['normal'].text_texture.copy_text_shadow()
+                # self.states[state_str].texture.text_texture_layer = self.states['normal'].text_texture.copy_text()
+                # self.states[state_str].texture.text_shadow_texture_layer = self.states['normal'].text_texture.copy_text_shadow()
+                self.states[state_str].texture.merge_text(self.text_box_layout.finalised_texture)
                 # self.states[state_str].texture.top_texture_layer = self.states[state_str].text_texture.copy_top()
             # print('finalise_text', self.states[state_str].texture.text_texture_layer)
 
@@ -675,11 +686,16 @@ class DrawableShape:
         # self.text_box_layout.turn_on_cursor()
         if self.text_box_layout is not None:
             for state_id, state in self.states.items():
-                if state.text_texture is not None:
-                    state.texture.text_texture_layer = self.states['normal'].text_texture.copy_text()
-                    state.texture.text_shadow_texture_layer = self.states['normal'].text_texture.copy_text_shadow()
+                if self.text_box_layout.finalised_texture is not None:
+                    # state.texture.text_texture_layer = self.states['normal'].text_texture.copy_text()
+                    # state.texture.text_shadow_texture_layer = self.states['normal'].text_texture.copy_text_shadow()
+                    state.texture.merge_text(self.text_box_layout.finalised_texture)
+                    # state.texture.text_texture_layer = self.states['normal'].text_texture.text_texture_layer
+                    # state.texture.text_shadow_texture_layer = self.states['normal'].text_texture.text_shadow_texture_layer
                     # state.texture.top_texture_layer = state.text_texture.copy_top()
-            self.text_box_layout.turn_on_cursor()
+            # self.text_box_layout.turn_on_cursor()
+        # self.active_state.has_fresh_texture = True
+        
         pass
 
     def set_text(self, text: str):

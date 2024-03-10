@@ -379,14 +379,17 @@ def scale_to_texture(texture: Texture, size: Tuple[int, int]):
 
 def rotate_texture(texture: Texture, angle: float):
     renderer = texture.renderer
-    new_size = (int(texture.get_rect().width * np.cos(angle) + texture.get_rect().height * np.sin(angle)), 
-                int(texture.get_rect().height * np.cos(angle) + texture.get_rect().width * np.sin(angle)))
+    new_size = (abs(int(texture.get_rect().width * np.cos(angle) + texture.get_rect().height * np.sin(angle))), 
+                abs(int(texture.get_rect().height * np.cos(angle) + texture.get_rect().width * np.sin(angle))))
     rotated_texture = Texture(renderer, size=new_size, target=True, scale_quality=2)
     clear_texture(rotated_texture)
     texture.blend_mode = 1
     rotated_texture.blend_mode = 1
+    rotated_rect = rotated_texture.get_rect()
+    target_rect = texture.get_rect()
+    target_rect.center = rotated_rect.center
     renderer.target = rotated_texture
-    texture.draw(dstrect=texture.get_rect(), angle=angle)
+    texture.draw(dstrect=target_rect, angle=angle)
     renderer.target = None
     return rotated_texture
     
@@ -516,7 +519,7 @@ class FontResource:
         self.force_style = location[1]
         self.loaded_font = None  # type: Union[IGUIFontInterface, None]
 
-        self.font_type_to_use = "pygame"
+        self.font_type_to_use = "freetype"
 
     def load(self):
         """
@@ -529,7 +532,7 @@ class FontResource:
         if isinstance(self.location, PackageResource):
             try:
                 if self.font_type_to_use == "freetype":
-                    self.loaded_font = GUIFontFreetype(
+                    self.loaded_font = GUIFontFreetype(self.renderer,
                         io.BytesIO((resources.files(self.location.package) /
                                     self.location.resource).read_bytes()),
                         self.size, self.force_style, self.style)

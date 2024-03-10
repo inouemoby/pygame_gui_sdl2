@@ -17,7 +17,7 @@ class GUIFontFreetype(IGUIFontInterface):
     def __init__(self, renderer, file: Optional[FileArg], size: Union[int, float],
                  force_style: bool = False, style: Optional[Dict[str, bool]] = None):
         self.renderer = renderer
-        self.__internal_font: Font = Font(file, size, resolution=72)
+        self.__internal_font: Font = Font(file, size, resolution=100)
         self.__internal_font.pad = True
         self.__internal_font.origin = True
         self.__internal_font.kerning = True

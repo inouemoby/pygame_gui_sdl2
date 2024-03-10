@@ -4,7 +4,7 @@ from typing import Tuple, Union, Dict
 import pygame
 from pygame._sdl2 import Texture
 from pygame_gui_sdl2.core.ui_texture import TextureLayer
-from pygame_gui_sdl2.core.utility import basic_render, clear_texture
+from pygame_gui_sdl2.core.utility import basic_render, clear_texture, rotate_texture
 
 global_renderer = None
 
@@ -65,7 +65,7 @@ class ShadowGenerator:
         # left_edge = top_edge.copy().rotate(90)
         # tl_corner = corner_texture.copy().scale_to((corner_radius_param,corner_radius_param))
         top_edge = edge_texture
-        left_edge = top_edge
+        left_edge = rotate_texture(top_edge, -90)
         tl_corner = corner_texture
 
 
@@ -204,11 +204,12 @@ class ShadowGenerator:
         if shadow_id in self.short_term_rect_cache:
             return self.short_term_rect_cache[shadow_id]
 
+        aa_amount = 4
         corner_index_id = str(shadow_width_param) + 'x' + str(corner_radius_param)
         if corner_index_id in self.preloaded_shadow_corners:
             edges_and_corners = self.preloaded_shadow_corners[corner_index_id]
         else:
-            edges_and_corners = self.create_shadow_corners(shadow_width_param, corner_radius_param)
+            edges_and_corners = self.create_shadow_corners(shadow_width_param, corner_radius_param, aa_amount)
 
         texture.render_to_background(edges_and_corners["top_left"], dstrect=pygame.Rect(0, 0, corner_radius_param, corner_radius_param))
         texture.render_to_background(edges_and_corners["top_right"], dstrect=pygame.Rect(width - corner_radius_param, 0, corner_radius_param, corner_radius_param), flip_x=True)
@@ -224,7 +225,7 @@ class ShadowGenerator:
             #                                      (width - (2 * corner_radius_param),
             #                                       shadow_width_param))
             texture.render_to_background(edges_and_corners["top"], dstrect=pygame.Rect(corner_radius_param, 0, width - (2 * corner_radius_param), shadow_width_param))
-            texture.render_to_background(edges_and_corners["bottom"], dstrect=pygame.Rect(corner_radius_param, height - shadow_width_param, width - (2 * corner_radius_param), shadow_width_param))
+            texture.render_to_background(edges_and_corners["bottom"], dstrect=pygame.Rect(corner_radius_param, height - shadow_width_param, width - (2 * corner_radius_param), shadow_width_param), flip_y=True)
 
         if height - (2 * corner_radius_param) > 0:
             # left_edge = edges_and_corners["left"].copy().scale_to(
@@ -233,9 +234,11 @@ class ShadowGenerator:
             # right_edge = edges_and_corners["right"].copy().scale_to(
             #                                     (shadow_width_param,
             #                                      height - (2 * corner_radius_param)))
-
-            texture.render_to_background(edges_and_corners["left"], dstrect=pygame.Rect(0, corner_radius_param, shadow_width_param, height - (2 * corner_radius_param)))
-            texture.render_to_background(edges_and_corners["right"], dstrect=pygame.Rect(width - shadow_width_param, corner_radius_param, shadow_width_param, height - (2 * corner_radius_param)))
+            left_srcrect = pygame.Rect(0.1*shadow_width_param*aa_amount, 0.25*shadow_width_param*aa_amount, shadow_width_param*aa_amount, 0.5*shadow_width_param*aa_amount)
+            texture.render_to_background(edges_and_corners["left"], srcrect=left_srcrect, dstrect=pygame.Rect(0, corner_radius_param, shadow_width_param, height - (2 * corner_radius_param)))
+            texture.render_to_background(edges_and_corners["right"], srcrect=left_srcrect, dstrect=pygame.Rect(width - shadow_width_param, corner_radius_param, shadow_width_param, height - (2 * corner_radius_param)), flip_x=True)
+            # texture.render_to_background(edges_and_corners["left"], dstrect=pygame.Rect(shadow_width_param*0.2, corner_radius_param, shadow_width_param, height ))
+            # texture.render_to_background(edges_and_corners["right"], dstrect=pygame.Rect(width - shadow_width_param*1.2, corner_radius_param, shadow_width_param, height), flip_x=True)
         # print("render shadow")
         self.short_term_rect_cache[shadow_id] = texture
         return texture
